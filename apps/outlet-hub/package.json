@@ -1,0 +1,28 @@
+{
+  "name": "@kaana/outlet-hub",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@kaana/device-bridge": "*",
+    "@kaana/outlet-db": "*",
+    "@kaana/sync-protocol": "*",
+    "cors": "^2.8.5",
+    "drizzle-orm": "^0.38.3",
+    "express": "^4.21.2",
+    "uuid": "^11.0.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

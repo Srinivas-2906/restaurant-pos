@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Kaana Captain",
+    "slug": "kaana-captain",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "kaana-captain",
+    "platforms": ["ios", "android"],
+    "plugins": ["expo-router"]
+  }
+}

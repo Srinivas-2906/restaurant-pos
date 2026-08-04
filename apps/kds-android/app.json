@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Kaana KDS",
+    "slug": "kaana-kds",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "scheme": "kaana-kds",
+    "platforms": ["android"],
+    "plugins": ["expo-router"]
+  }
+}

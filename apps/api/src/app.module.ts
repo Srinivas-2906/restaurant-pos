@@ -1,0 +1,70 @@
+import { Module } from "@nestjs/common";
+import { APP_GUARD } from "@nestjs/core";
+import { ConfigModule } from "@nestjs/config";
+import { PrismaModule } from "./prisma/prisma.module";
+import { AuthModule } from "./auth/auth.module";
+import { RolesGuard } from "./auth/roles.guard";
+import { OrganizationsModule } from "./organizations/organizations.module";
+import { OutletsModule } from "./outlets/outlets.module";
+import { UsersModule } from "./users/users.module";
+import { MenuModule } from "./menu/menu.module";
+import { OrdersModule } from "./orders/orders.module";
+import { KdsModule } from "./kds/kds.module";
+import { InventoryModule } from "./inventory/inventory.module";
+import { CrmModule } from "./crm/crm.module";
+import { ReservationsModule } from "./reservations/reservations.module";
+import { ReportsModule } from "./reports/reports.module";
+import { PartnerModule } from "./partner/partner.module";
+import { SyncModule } from "./sync/sync.module";
+import { EventsModule } from "./events/events.module";
+import { PrintModule } from "./print/print.module";
+import { AuditModule } from "./audit/audit.module";
+import { DevicesModule } from "./devices/devices.module";
+import { MarginsModule } from "./margins/margins.module";
+import { RecommendationsModule } from "./recommendations/recommendations.module";
+import { DeveloperModule } from "./developer/developer.module";
+import { DiagnosticsModule } from "./diagnostics/diagnostics.module";
+import { FoodSafetyModule } from "./food-safety/food-safety.module";
+import { FranchiseModule } from "./franchise/franchise.module";
+import { TrainingModule } from "./training/training.module";
+import { StaffModule } from "./staff/staff.module";
+import { ApprovalsModule } from "./approvals/approvals.module";
+import { PayrollModule } from "./payroll/payroll.module";
+import { HealthController } from "./health.controller";
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    EventsModule,
+    AuthModule,
+    AuditModule,
+    DevicesModule,
+    OrganizationsModule,
+    OutletsModule,
+    UsersModule,
+    MenuModule,
+    OrdersModule,
+    KdsModule,
+    InventoryModule,
+    CrmModule,
+    ReservationsModule,
+    ReportsModule,
+    PartnerModule,
+    SyncModule,
+    PrintModule,
+    MarginsModule,
+    RecommendationsModule,
+    DeveloperModule,
+    DiagnosticsModule,
+    FoodSafetyModule,
+    FranchiseModule,
+    TrainingModule,
+    StaffModule,
+    ApprovalsModule,
+    PayrollModule,
+  ],
+  controllers: [HealthController],
+  providers: [{ provide: APP_GUARD, useClass: RolesGuard }],
+})
+export class AppModule {}
