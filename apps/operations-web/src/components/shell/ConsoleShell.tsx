@@ -14,7 +14,7 @@ export function ConsoleShell({ children, hubOffline }: ConsoleShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-surface flex">
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       {mobileOpen && (
         <button
@@ -24,7 +24,7 @@ export function ConsoleShell({ children, hubOffline }: ConsoleShellProps) {
           aria-label="Close menu"
         />
       )}
-      <div className="lg:pl-sidebar min-h-screen flex flex-col">
+      <div className="flex-1 min-w-0 min-h-screen flex flex-col">
         <TopBar onMenuClick={() => setMobileOpen(true)} hubOffline={hubOffline} />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>

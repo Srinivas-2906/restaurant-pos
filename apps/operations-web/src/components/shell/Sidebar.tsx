@@ -65,7 +65,7 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
 
   return (
     <>
-      <aside className="hidden lg:flex flex-col w-sidebar min-h-screen bg-sidebar fixed left-0 top-0 bottom-0 z-40">
+      <aside className="hidden lg:flex flex-col w-sidebar shrink-0 bg-sidebar sticky top-0 h-screen z-40">
         {content}
       </aside>
       {mobileOpen && (
