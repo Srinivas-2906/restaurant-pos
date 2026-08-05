@@ -21,6 +21,8 @@ function POSApp() {
   const [activeCategory, setActiveCategory] = useState("");
   const [online, setOnline] = useState(true);
   const [pendingSync, setPendingSync] = useState(0);
+  const [clockRecordId, setClockRecordId] = useState<string | null>(null);
+  const [clockMsg, setClockMsg] = useState("");
   const clientId = typeof window !== "undefined" ? localStorage.getItem("clientId") || crypto.randomUUID() : "";
 
   useEffect(() => {
@@ -48,14 +50,43 @@ function POSApp() {
   }, [authenticated, outletId, loadData]);
 
   async function handleLogin() {
-    const data = await login("biller@kaanafoods.in", "password123");
-    const role = (data as { user?: { roles?: Array<{ role: string }> } }).user?.roles?.[0]?.role ?? "biller";
+    const data = await login("biller@kaanafoods.in", "password123") as {
+      user?: { id: string; roles?: Array<{ role: string }> };
+    };
+    const role = data.user?.roles?.[0]?.role ?? "biller";
     if (role !== "biller") {
       const { redirectUrlForRole } = await import("@kaana/role-shells");
       window.location.href = redirectUrlForRole(role as never);
       return;
     }
+    if (data.user?.id) localStorage.setItem("userId", data.user.id);
     setAuthenticated(true);
+  }
+
+  async function clockIn() {
+    const userId = localStorage.getItem("userId");
+    if (!userId || !outletId) return;
+    try {
+      const rec = await api<{ id: string }>("/staff/clock-in", {
+        method: "POST",
+        body: JSON.stringify({ outletId, userId, source: "pos" }),
+      });
+      setClockRecordId(rec.id);
+      setClockMsg("Clocked in");
+    } catch {
+      setClockMsg("Clock-in failed");
+    }
+  }
+
+  async function clockOut() {
+    if (!clockRecordId) return;
+    try {
+      await api(`/staff/clock-out/${clockRecordId}`, { method: "POST" });
+      setClockRecordId(null);
+      setClockMsg("Clocked out");
+    } catch {
+      setClockMsg("Clock-out failed");
+    }
   }
 
   async function openTable(table: Table) {
@@ -115,6 +146,12 @@ function POSApp() {
           <span className={online ? "text-green-400" : "text-red-400"}>
             {online ? "● Online" : "● Offline"}
           </span>
+          {clockRecordId ? (
+            <button type="button" onClick={clockOut} className="text-yellow-300 hover:text-yellow-200">Clock out</button>
+          ) : (
+            <button type="button" onClick={clockIn} className="text-green-300 hover:text-green-200">Clock in</button>
+          )}
+          {clockMsg && <span className="text-gray-400">{clockMsg}</span>}
           {pendingSync > 0 && <span className="text-yellow-400">{pendingSync} pending sync</span>}
           {selectedTable && <span>Table {selectedTable.number}</span>}
         </div>

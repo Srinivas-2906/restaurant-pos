@@ -42,6 +42,8 @@ export function OverviewModule() {
     topItems,
     revenueSeries,
     orderStatusCounts,
+    onFloorCount,
+    pendingPayrollCount,
   } = useDashboardData();
 
   return (
@@ -204,6 +206,24 @@ export function OverviewModule() {
               })}
             </div>
           )}
+        </Panel>
+
+        <Panel
+          title="Staff on floor"
+          action={<Link href="/staff/attendance" className="text-sm text-kaana font-medium hover:underline">Attendance</Link>}
+        >
+          <p className="text-3xl font-bold text-gray-900">{onFloorCount}</p>
+          <p className="text-sm text-gray-500 mt-1">Currently clocked in</p>
+        </Panel>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <Panel
+          title="Payroll pending"
+          action={<Link href="/finance/payroll" className="text-sm text-kaana font-medium hover:underline">Review</Link>}
+        >
+          <p className="text-3xl font-bold text-gray-900">{pendingPayrollCount}</p>
+          <p className="text-sm text-gray-500 mt-1">Draft runs awaiting approval</p>
         </Panel>
 
         <Panel

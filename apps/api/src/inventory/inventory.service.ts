@@ -51,15 +51,151 @@ export class InventoryService {
   getIngredients(outletId: string) {
     return this.prisma.ingredient.findMany({
       where: { outletId, isActive: true },
-      include: { supplier: true },
+      include: { supplier: true, category: true },
       orderBy: { name: "asc" },
     });
   }
 
   createIngredient(outletId: string, data: {
-    name: string; unit: string; minStock?: number; costPerUnit?: number; supplierId?: string;
+    name: string; unit: string; minStock?: number; parStock?: number; costPerUnit?: number;
+    supplierId?: string; categoryId?: string; consumptionUnit?: string; taxPct?: number;
+    normalLossPct?: number; allowDecimal?: boolean; isFavourite?: boolean;
   }) {
     return this.prisma.ingredient.create({ data: { outletId, ...data } });
+  }
+
+  updateIngredient(id: string, data: Record<string, unknown>) {
+    return this.prisma.ingredient.update({ where: { id }, data: data as never });
+  }
+
+  async getStockSummary(outletId: string) {
+    const ingredients = await this.prisma.ingredient.findMany({
+      where: { outletId, isActive: true },
+      include: { category: true },
+    });
+    const totalValue = ingredients.reduce(
+      (s, i) => s + Number(i.currentStock) * Number(i.costPerUnit),
+      0,
+    );
+    const belowPar = ingredients.filter((i) => Number(i.currentStock) <= Number(i.parStock || i.minStock));
+    const lowStock = ingredients.filter((i) => Number(i.currentStock) <= Number(i.minStock));
+    const byCategory = new Map<string, { name: string; value: number; count: number }>();
+    for (const ing of ingredients) {
+      const cat = ing.category?.name ?? "Uncategorized";
+      const existing = byCategory.get(cat) ?? { name: cat, value: 0, count: 0 };
+      existing.value += Number(ing.currentStock) * Number(ing.costPerUnit);
+      existing.count += 1;
+      byCategory.set(cat, existing);
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const closing = await this.prisma.stockClosing.findUnique({
+      where: { outletId_date: { outletId, date: today } },
+    });
+    return {
+      totalValue,
+      totalItems: ingredients.length,
+      belowParCount: belowPar.length,
+      lowStockCount: lowStock.length,
+      lowStockItems: lowStock.slice(0, 10).map((i) => ({
+        id: i.id,
+        name: i.name,
+        currentStock: Number(i.currentStock),
+        minStock: Number(i.minStock),
+        unit: i.unit,
+      })),
+      categoryBreakdown: Array.from(byCategory.values()),
+      todayClosing: closing,
+    };
+  }
+
+  getStockLedger(outletId: string, limit = 100) {
+    return this.prisma.stockLedger.findMany({
+      where: { outletId },
+      include: { ingredient: { select: { name: true, unit: true } } },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+  }
+
+  createStockAdjustment(outletId: string, data: {
+    ingredientId: string; quantity: number; notes?: string; createdById?: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const ingredient = await tx.ingredient.findUniqueOrThrow({ where: { id: data.ingredientId } });
+      const newStock = Number(ingredient.currentStock) + data.quantity;
+      await tx.ingredient.update({
+        where: { id: data.ingredientId },
+        data: { currentStock: Math.max(0, newStock) },
+      });
+      return tx.stockLedger.create({
+        data: {
+          outletId,
+          ingredientId: data.ingredientId,
+          type: "adjustment",
+          quantity: data.quantity,
+          balanceAfter: Math.max(0, newStock),
+          notes: data.notes,
+          createdById: data.createdById,
+        },
+      });
+    });
+  }
+
+  async getStockClosings(outletId: string, month?: string) {
+    const ref = month ? new Date(`${month}-01`) : new Date();
+    const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    const end = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+    return this.prisma.stockClosing.findMany({
+      where: { outletId, date: { gte: start, lte: end } },
+      orderBy: { date: "asc" },
+    });
+  }
+
+  createStockClosing(outletId: string, data: { date?: string; accuracyPct?: number; closedById?: string; notes?: string }) {
+    const date = data.date ? new Date(data.date) : new Date();
+    date.setHours(0, 0, 0, 0);
+    return this.prisma.stockClosing.upsert({
+      where: { outletId_date: { outletId, date } },
+      create: {
+        outletId,
+        date,
+        status: "completed",
+        accuracyPct: data.accuracyPct,
+        closedById: data.closedById,
+        closedAt: new Date(),
+        notes: data.notes,
+      },
+      update: {
+        status: "completed",
+        accuracyPct: data.accuracyPct,
+        closedById: data.closedById,
+        closedAt: new Date(),
+        notes: data.notes,
+      },
+    });
+  }
+
+  getCategories(outletId: string) {
+    return this.prisma.ingredientCategory.findMany({
+      where: { outletId },
+      orderBy: { sortOrder: "asc" },
+    });
+  }
+
+  createCategory(outletId: string, name: string, sortOrder = 0) {
+    return this.prisma.ingredientCategory.create({ data: { outletId, name, sortOrder } });
+  }
+
+  updateSupplier(id: string, data: Record<string, unknown>) {
+    return this.prisma.supplier.update({ where: { id }, data: data as never });
+  }
+
+  listTransfers(outletId: string) {
+    return this.prisma.centralKitchenTransfer.findMany({
+      where: { OR: [{ fromOutletId: outletId }, { toOutletId: outletId }] },
+      orderBy: { requestedAt: "desc" },
+    });
   }
 
   recordWastage(outletId: string, ingredientId: string, quantity: number, notes?: string) {

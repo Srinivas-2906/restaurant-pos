@@ -69,7 +69,7 @@ export function NewPOModule() {
   const [ingredients, setIngredients] = useState<Array<{ id: string; name: string }>>([]);
   const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
   const [supplierId, setSupplierId] = useState("");
-  const [lines, setLines] = useState([{ ingredientId: "", quantity: 1 }]);
+  const [lines, setLines] = useState([{ ingredientId: "", quantity: 1, unitPrice: 0 }]);
   const [msg, setMsg] = useState("");
   const outletId = getOutletId();
 
@@ -87,7 +87,7 @@ export function NewPOModule() {
         method: "POST",
         body: JSON.stringify({
           supplierId,
-          items: lines.filter((l) => l.ingredientId).map((l) => ({ ingredientId: l.ingredientId, quantity: l.quantity, unitPrice: 0 })),
+          items: lines.filter((l) => l.ingredientId).map((l) => ({ ingredientId: l.ingredientId, quantity: l.quantity, unitPrice: l.unitPrice || 0 })),
         }),
       });
       setMsg("PO created");
@@ -112,10 +112,11 @@ export function NewPOModule() {
                 <option value="">Ingredient...</option>
                 {ingredients.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
               </select>
-              <input type="number" min={1} value={line.quantity} onChange={(e) => { const n = [...lines]; n[idx].quantity = Number(e.target.value); setLines(n); }} className="w-24 border border-gray-200 rounded-xl px-3 py-2.5" />
+              <input type="number" min={1} value={line.quantity} onChange={(e) => { const n = [...lines]; n[idx].quantity = Number(e.target.value); setLines(n); }} className="w-20 border border-gray-200 rounded-xl px-3 py-2.5" />
+              <input type="number" min={0} step="0.01" value={line.unitPrice} onChange={(e) => { const n = [...lines]; n[idx].unitPrice = Number(e.target.value); setLines(n); }} className="w-24 border border-gray-200 rounded-xl px-3 py-2.5" placeholder="Price" />
             </div>
           ))}
-          <button type="button" onClick={() => setLines([...lines, { ingredientId: "", quantity: 1 }])} className="text-sm text-kaana font-medium">+ Add line</button>
+          <button type="button" onClick={() => setLines([...lines, { ingredientId: "", quantity: 1, unitPrice: 0 }])} className="text-sm text-kaana font-medium">+ Add line</button>
           {msg && <p className="text-sm text-green-700">{msg}</p>}
           <button type="submit" className="w-full bg-kaana hover:bg-kaana-dark text-white py-2.5 rounded-xl font-medium">Create PO</button>
         </form>

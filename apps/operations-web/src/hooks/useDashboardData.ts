@@ -58,6 +58,8 @@ export interface DashboardData {
   topItems: TopItem[];
   revenueSeries: RevenueDay[];
   orderStatusCounts: { name: string; value: number; color: string }[];
+  onFloorCount: number;
+  pendingPayrollCount: number;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -88,6 +90,8 @@ export function useDashboardData(): DashboardData {
   const [topItems, setTopItems] = useState<TopItem[]>([]);
   const [revenueSeries, setRevenueSeries] = useState<RevenueDay[]>([]);
   const [orderStatusCounts, setOrderStatusCounts] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [onFloorCount, setOnFloorCount] = useState(0);
+  const [pendingPayrollCount, setPendingPayrollCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,12 +132,14 @@ export function useDashboardData(): DashboardData {
         outletId
           ? api<TopItem[]>(`/reports/items?outletId=${outletId}&from=${from}&to=${to}`)
           : Promise.resolve([]),
+        outletId ? api<unknown[]>(`/staff/outlets/${outletId}/on-floor`) : Promise.resolve([]),
+        api<Array<{ status: string }>>("/payroll/runs").catch(() => []),
         Promise.allSettled(dayPromises),
       ]);
 
       if (cancelled) return;
 
-      const [statsR, ingredientsR, approvalsR, floorR, ordersR, itemsR, revenueR] = results;
+      const [statsR, ingredientsR, approvalsR, floorR, ordersR, itemsR, onFloorR, payrollR, revenueR] = results;
 
       if (statsR.status === "fulfilled") setStats(statsR.value);
       if (approvalsR.status === "fulfilled") setPendingApprovals(approvalsR.value.total);
@@ -179,6 +185,11 @@ export function useDashboardData(): DashboardData {
 
       if (itemsR.status === "fulfilled") setTopItems((itemsR.value ?? []).slice(0, 5));
 
+      if (onFloorR.status === "fulfilled") setOnFloorCount((onFloorR.value as unknown[])?.length ?? 0);
+      if (payrollR.status === "fulfilled") {
+        setPendingPayrollCount((payrollR.value as Array<{ status: string }>).filter((r) => r.status === "draft").length);
+      }
+
       if (revenueR.status === "fulfilled") {
         const days = revenueR.value.map((r) => (r.status === "fulfilled" ? r.value : null)).filter(Boolean) as RevenueDay[];
         setRevenueSeries(days.length ? days : buildEmptySeries(weekAgo));
@@ -208,6 +219,8 @@ export function useDashboardData(): DashboardData {
     topItems,
     revenueSeries,
     orderStatusCounts,
+    onFloorCount,
+    pendingPayrollCount,
   };
 }
 

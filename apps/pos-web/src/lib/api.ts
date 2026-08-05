@@ -15,11 +15,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 }
 
 export async function login(email: string, password: string) {
-  const data = await api<{ accessToken: string; user?: unknown }>("/auth/login", {
+  const data = await api<{ accessToken: string; user?: { id: string } }>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
   localStorage.setItem("token", data.accessToken);
+  if (data.user?.id) localStorage.setItem("userId", data.user.id);
   return data;
 }
 

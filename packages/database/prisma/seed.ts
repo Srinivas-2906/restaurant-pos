@@ -299,15 +299,26 @@ async function main() {
     },
   });
 
+  const dairyCat = await prisma.ingredientCategory.create({
+    data: { outletId: dineInOutlet.id, name: "Dairy", sortOrder: 1 },
+  });
+  const proteinCat = await prisma.ingredientCategory.create({
+    data: { outletId: dineInOutlet.id, name: "Protein", sortOrder: 2 },
+  });
+
   const paneer = await prisma.ingredient.create({
     data: {
       outletId: dineInOutlet.id,
       name: "Paneer",
       unit: "kg",
+      consumptionUnit: "kg",
       currentStock: 10,
       minStock: 2,
+      parStock: 8,
       costPerUnit: 320,
       supplierId: supplier.id,
+      categoryId: dairyCat.id,
+      isFavourite: true,
     },
   });
 
@@ -316,10 +327,13 @@ async function main() {
       outletId: dineInOutlet.id,
       name: "Chicken",
       unit: "kg",
+      consumptionUnit: "kg",
       currentStock: 15,
       minStock: 3,
+      parStock: 12,
       costPerUnit: 280,
       supplierId: supplier.id,
+      categoryId: proteinCat.id,
     },
   });
 
@@ -439,6 +453,87 @@ async function main() {
       create: { ...profile, outletId: dineInOutlet.id },
     });
   }
+
+  const kitchenDept = await prisma.department.upsert({
+    where: { organizationId_name: { organizationId: org.id, name: "Kitchen" } },
+    update: {},
+    create: { organizationId: org.id, name: "Kitchen" },
+  });
+  const serviceDept = await prisma.department.upsert({
+    where: { organizationId_name: { organizationId: org.id, name: "Service" } },
+    update: {},
+    create: { organizationId: org.id, name: "Service" },
+  });
+  const headChef = await prisma.designation.upsert({
+    where: { organizationId_name: { organizationId: org.id, name: "Head Chef" } },
+    update: {},
+    create: { organizationId: org.id, name: "Head Chef", departmentId: kitchenDept.id },
+  });
+  const floorManager = await prisma.designation.upsert({
+    where: { organizationId_name: { organizationId: org.id, name: "Floor Manager" } },
+    update: {},
+    create: { organizationId: org.id, name: "Floor Manager", departmentId: serviceDept.id },
+  });
+
+  await prisma.staffProfile.update({
+    where: { userId: manager.id },
+    data: {
+      departmentId: serviceDept.id,
+      designationId: floorManager.id,
+      displayName: "Raj Manager",
+      phone: "+919876543210",
+      pfAccount: "PF-KAANA-003",
+      uan: "100012345678",
+      bankName: "HDFC Bank",
+      bankAccount: "50100123456789",
+      ifsc: "HDFC0001234",
+      monthlySalary: 45000,
+    },
+  });
+  await prisma.staffProfile.update({
+    where: { userId: biller.id },
+    data: {
+      departmentId: serviceDept.id,
+      hourlyRate: 150,
+      bankName: "SBI",
+      bankAccount: "30001234567",
+      ifsc: "SBIN0001234",
+    },
+  });
+
+  const existingWageRule = await prisma.wageRule.findFirst({ where: { outletId: dineInOutlet.id, role: UserRole.biller } });
+  if (!existingWageRule) {
+    await prisma.wageRule.createMany({
+      data: [
+        { outletId: dineInOutlet.id, role: UserRole.biller, wageType: "hourly", hourlyRate: 150 },
+        { outletId: dineInOutlet.id, role: UserRole.captain, wageType: "hourly", hourlyRate: 140 },
+        { outletId: dineInOutlet.id, role: UserRole.manager, wageType: "monthly", monthlySalary: 45000 },
+        { outletId: dineInOutlet.id, role: UserRole.chef, wageType: "monthly", monthlySalary: 38000 },
+      ],
+    });
+  }
+
+  const closingDate = new Date();
+  closingDate.setHours(0, 0, 0, 0);
+  await prisma.stockClosing.upsert({
+    where: { outletId_date: { outletId: dineInOutlet.id, date: closingDate } },
+    update: {},
+    create: {
+      outletId: dineInOutlet.id,
+      date: closingDate,
+      status: "completed",
+      accuracyPct: 100,
+      closedAt: new Date(),
+    },
+  });
+
+  await prisma.holiday.createMany({
+    data: [
+      { outletId: dineInOutlet.id, date: new Date(new Date().getFullYear(), 0, 26), name: "Republic Day" },
+      { outletId: dineInOutlet.id, date: new Date(new Date().getFullYear(), 7, 15), name: "Independence Day" },
+    ],
+    skipDuplicates: true,
+  });
 
   const shiftStart = new Date();
   shiftStart.setHours(10, 0, 0, 0);

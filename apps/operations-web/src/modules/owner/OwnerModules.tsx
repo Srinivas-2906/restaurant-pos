@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, getOutletId } from "@/lib/api";
 import { MarginAlertCard, formatCurrency } from "@kaana/ui";
@@ -149,15 +150,33 @@ export function DevicesModule() {
 export function ReportsModule() {
   const outletId = getOutletId();
   const [comparison, setComparison] = useState<Array<{ outletName?: string; revenue?: number; orders?: number }>>([]);
+  const [inventory, setInventory] = useState<Array<{ isLowStock?: boolean; value?: number }>>([]);
+  const [wastage, setWastage] = useState<Array<{ quantity: number | string }>>([]);
+  const from = new Date(Date.now() - 30 * 86400000).toISOString();
+  const to = new Date().toISOString();
 
   useEffect(() => {
-    const { from, to } = { from: new Date(Date.now() - 30 * 86400000).toISOString(), to: new Date().toISOString() };
     api<Array<{ outletName?: string; revenue?: number; orders?: number }>>(`/reports/outlets/comparison?from=${from}&to=${to}`).then(setComparison).catch(() => {});
-  }, [outletId]);
+    if (outletId) {
+      api<typeof inventory>(`/reports/inventory?outletId=${outletId}`).then(setInventory).catch(() => setInventory([]));
+      api<typeof wastage>(`/reports/wastage?outletId=${outletId}&from=${from}&to=${to}`).then(setWastage).catch(() => setWastage([]));
+    }
+  }, [outletId, from, to]);
 
   return (
     <PageContent>
-      <PageHeader title="Reports" description="Cross-outlet performance comparison." />
+      <PageHeader title="Reports" description="Performance, inventory, and wastage analytics." />
+      <div className="grid lg:grid-cols-2 gap-6 mb-6">
+        <Panel title="Inventory snapshot">
+          <p className="text-sm text-gray-600">Total ingredients: <strong>{inventory.length || "—"}</strong></p>
+          <p className="text-sm text-gray-600 mt-2">Low stock items: <strong>{inventory.filter((i) => i.isLowStock).length}</strong></p>
+          <Link href="/inventory" className="inline-block mt-3 text-sm text-kaana font-medium hover:underline">Open inventory</Link>
+        </Panel>
+        <Panel title="Wastage (30 days)">
+          <p className="text-sm text-gray-600">Total wastage events: <strong>{wastage.length}</strong></p>
+          <Link href="/purchases/wastage" className="inline-block mt-3 text-sm text-kaana font-medium hover:underline">Log wastage</Link>
+        </Panel>
+      </div>
       <Panel title="Outlet comparison (30 days)">
         {comparison.length === 0 ? (
           <EmptyState title="No comparison data" />
