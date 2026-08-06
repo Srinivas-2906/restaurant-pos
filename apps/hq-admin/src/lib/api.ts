@@ -18,7 +18,11 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 }
 
 export async function login(email: string, password: string) {
-  const data = await api<{ accessToken: string; refreshToken: string; user: unknown }>("/auth/login", {
+  const data = await api<{
+    accessToken: string;
+    refreshToken: string;
+    user: { roles?: Array<{ role: string; outletId?: string | null }> };
+  }>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
