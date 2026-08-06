@@ -234,10 +234,10 @@ async function main() {
   });
 
   const categories = await Promise.all([
-    prisma.category.create({ data: { menuId: menu.id, name: "Starters", nameHi: "शुरुआती", sortOrder: 1 } }),
-    prisma.category.create({ data: { menuId: menu.id, name: "Main Course", nameHi: "मुख्य व्यंजन", sortOrder: 2 } }),
-    prisma.category.create({ data: { menuId: menu.id, name: "Breads", nameHi: "रोटी", sortOrder: 3 } }),
-    prisma.category.create({ data: { menuId: menu.id, name: "Beverages", nameHi: "पेय", sortOrder: 4 } }),
+    prisma.category.create({ data: { menuId: menu.id, name: "Starters", sortOrder: 1 } }),
+    prisma.category.create({ data: { menuId: menu.id, name: "Main Course", sortOrder: 2 } }),
+    prisma.category.create({ data: { menuId: menu.id, name: "Breads", sortOrder: 3 } }),
+    prisma.category.create({ data: { menuId: menu.id, name: "Beverages", sortOrder: 4 } }),
   ]);
 
   const paneerTikka = await prisma.menuItem.create({
@@ -245,7 +245,6 @@ async function main() {
       categoryId: categories[0].id,
       kitchenStationId: stations[0].id,
       name: "Paneer Tikka",
-      nameHi: "पनीर टिक्का",
       basePrice: 249,
       taxRuleId: taxRule.id,
       isVeg: true,
@@ -258,7 +257,6 @@ async function main() {
       categoryId: categories[1].id,
       kitchenStationId: stations[1].id,
       name: "Butter Chicken",
-      nameHi: "बटर चिकन",
       basePrice: 349,
       taxRuleId: taxRule.id,
       isVeg: false,
@@ -271,7 +269,6 @@ async function main() {
       categoryId: categories[2].id,
       kitchenStationId: stations[0].id,
       name: "Butter Naan",
-      nameHi: "बटर नान",
       basePrice: 59,
       taxRuleId: taxRule.id,
       isVeg: true,
@@ -283,12 +280,102 @@ async function main() {
       categoryId: categories[3].id,
       kitchenStationId: stations[2].id,
       name: "Masala Chai",
-      nameHi: "मसाला चाय",
       basePrice: 49,
       taxRuleId: taxRule.id,
       isVeg: true,
     },
   });
+
+  await Promise.all([
+    prisma.menuItem.create({
+      data: {
+        categoryId: categories[0].id,
+        kitchenStationId: stations[0].id,
+        name: "Hara Bhara Kebab",
+        basePrice: 199,
+        taxRuleId: taxRule.id,
+        isVeg: true,
+        sortOrder: 2,
+      },
+    }),
+    prisma.menuItem.create({
+      data: {
+        categoryId: categories[0].id,
+        kitchenStationId: stations[1].id,
+        name: "Chicken Wings",
+        basePrice: 279,
+        taxRuleId: taxRule.id,
+        isVeg: false,
+        sortOrder: 3,
+      },
+    }),
+    prisma.menuItem.create({
+      data: {
+        categoryId: categories[1].id,
+        kitchenStationId: stations[1].id,
+        name: "Dal Makhani",
+        basePrice: 249,
+        taxRuleId: taxRule.id,
+        isVeg: true,
+        sortOrder: 2,
+      },
+    }),
+    prisma.menuItem.create({
+      data: {
+        categoryId: categories[1].id,
+        kitchenStationId: stations[1].id,
+        name: "Veg Biryani",
+        basePrice: 299,
+        taxRuleId: taxRule.id,
+        isVeg: true,
+        sortOrder: 3,
+      },
+    }),
+    prisma.menuItem.create({
+      data: {
+        categoryId: categories[2].id,
+        kitchenStationId: stations[0].id,
+        name: "Garlic Naan",
+        basePrice: 69,
+        taxRuleId: taxRule.id,
+        isVeg: true,
+        sortOrder: 2,
+      },
+    }),
+    prisma.menuItem.create({
+      data: {
+        categoryId: categories[2].id,
+        kitchenStationId: stations[0].id,
+        name: "Tandoori Roti",
+        basePrice: 39,
+        taxRuleId: taxRule.id,
+        isVeg: true,
+        sortOrder: 3,
+      },
+    }),
+    prisma.menuItem.create({
+      data: {
+        categoryId: categories[3].id,
+        kitchenStationId: stations[2].id,
+        name: "Sweet Lassi",
+        basePrice: 79,
+        taxRuleId: taxRule.id,
+        isVeg: true,
+        sortOrder: 2,
+      },
+    }),
+    prisma.menuItem.create({
+      data: {
+        categoryId: categories[3].id,
+        kitchenStationId: stations[2].id,
+        name: "Fresh Lime Soda",
+        basePrice: 69,
+        taxRuleId: taxRule.id,
+        isVeg: true,
+        sortOrder: 3,
+      },
+    }),
+  ]);
 
   const supplier = await prisma.supplier.create({
     data: {
@@ -299,15 +386,26 @@ async function main() {
     },
   });
 
+  const dairyCat = await prisma.ingredientCategory.create({
+    data: { outletId: dineInOutlet.id, name: "Dairy", sortOrder: 1 },
+  });
+  const proteinCat = await prisma.ingredientCategory.create({
+    data: { outletId: dineInOutlet.id, name: "Protein", sortOrder: 2 },
+  });
+
   const paneer = await prisma.ingredient.create({
     data: {
       outletId: dineInOutlet.id,
       name: "Paneer",
       unit: "kg",
+      consumptionUnit: "kg",
       currentStock: 10,
       minStock: 2,
+      parStock: 8,
       costPerUnit: 320,
       supplierId: supplier.id,
+      categoryId: dairyCat.id,
+      isFavourite: true,
     },
   });
 
@@ -316,10 +414,13 @@ async function main() {
       outletId: dineInOutlet.id,
       name: "Chicken",
       unit: "kg",
+      consumptionUnit: "kg",
       currentStock: 15,
       minStock: 3,
+      parStock: 12,
       costPerUnit: 280,
       supplierId: supplier.id,
+      categoryId: proteinCat.id,
     },
   });
 
@@ -345,6 +446,59 @@ async function main() {
     create: { outletId: dineInOutlet.id, prefix: "INV", year: new Date().getFullYear(), lastNumber: 0 },
   });
   } // end initial demo data block
+
+  const demoMenu = await prisma.menu.findFirst({ where: { brandId: brand.id } });
+  const demoTax = await prisma.taxRule.findFirst();
+  const demoStations = await prisma.kitchenStation.findMany({
+    where: { outletId: dineInOutlet.id },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  if (demoMenu && demoTax && demoStations.length >= 3) {
+    const demoCategories = await prisma.category.findMany({
+      where: { menuId: demoMenu.id },
+      orderBy: { sortOrder: "asc" },
+    });
+    const catByName = (name: string) => demoCategories.find((c) => c.name === name);
+
+    const extraMenuItems: Array<{
+      category: string;
+      name: string;
+      basePrice: number;
+      stationIdx: number;
+      isVeg: boolean;
+      sortOrder: number;
+    }> = [
+      { category: "Starters", name: "Hara Bhara Kebab", basePrice: 199, stationIdx: 0, isVeg: true, sortOrder: 2 },
+      { category: "Starters", name: "Chicken Wings", basePrice: 279, stationIdx: 1, isVeg: false, sortOrder: 3 },
+      { category: "Main Course", name: "Dal Makhani", basePrice: 249, stationIdx: 1, isVeg: true, sortOrder: 2 },
+      { category: "Main Course", name: "Veg Biryani", basePrice: 299, stationIdx: 1, isVeg: true, sortOrder: 3 },
+      { category: "Breads", name: "Garlic Naan", basePrice: 69, stationIdx: 0, isVeg: true, sortOrder: 2 },
+      { category: "Breads", name: "Tandoori Roti", basePrice: 39, stationIdx: 0, isVeg: true, sortOrder: 3 },
+      { category: "Beverages", name: "Sweet Lassi", basePrice: 79, stationIdx: 2, isVeg: true, sortOrder: 2 },
+      { category: "Beverages", name: "Fresh Lime Soda", basePrice: 69, stationIdx: 2, isVeg: true, sortOrder: 3 },
+    ];
+
+    for (const item of extraMenuItems) {
+      const category = catByName(item.category);
+      if (!category) continue;
+      const exists = await prisma.menuItem.findFirst({
+        where: { categoryId: category.id, name: item.name },
+      });
+      if (exists) continue;
+      await prisma.menuItem.create({
+        data: {
+          categoryId: category.id,
+          kitchenStationId: demoStations[item.stationIdx].id,
+          name: item.name,
+          basePrice: item.basePrice,
+          taxRuleId: demoTax.id,
+          isVeg: item.isVeg,
+          sortOrder: item.sortOrder,
+        },
+      });
+    }
+  }
 
   const seedSupplier = await prisma.supplier.findFirst({ where: { outletId: dineInOutlet.id } });
   const seedPaneer = await prisma.ingredient.findFirst({ where: { outletId: dineInOutlet.id, name: "Paneer" } });
@@ -440,6 +594,87 @@ async function main() {
     });
   }
 
+  const kitchenDept = await prisma.department.upsert({
+    where: { organizationId_name: { organizationId: org.id, name: "Kitchen" } },
+    update: {},
+    create: { organizationId: org.id, name: "Kitchen" },
+  });
+  const serviceDept = await prisma.department.upsert({
+    where: { organizationId_name: { organizationId: org.id, name: "Service" } },
+    update: {},
+    create: { organizationId: org.id, name: "Service" },
+  });
+  const headChef = await prisma.designation.upsert({
+    where: { organizationId_name: { organizationId: org.id, name: "Head Chef" } },
+    update: {},
+    create: { organizationId: org.id, name: "Head Chef", departmentId: kitchenDept.id },
+  });
+  const floorManager = await prisma.designation.upsert({
+    where: { organizationId_name: { organizationId: org.id, name: "Floor Manager" } },
+    update: {},
+    create: { organizationId: org.id, name: "Floor Manager", departmentId: serviceDept.id },
+  });
+
+  await prisma.staffProfile.update({
+    where: { userId: manager.id },
+    data: {
+      departmentId: serviceDept.id,
+      designationId: floorManager.id,
+      displayName: "Raj Manager",
+      phone: "+919876543210",
+      pfAccount: "PF-KAANA-003",
+      uan: "100012345678",
+      bankName: "HDFC Bank",
+      bankAccount: "50100123456789",
+      ifsc: "HDFC0001234",
+      monthlySalary: 45000,
+    },
+  });
+  await prisma.staffProfile.update({
+    where: { userId: biller.id },
+    data: {
+      departmentId: serviceDept.id,
+      hourlyRate: 150,
+      bankName: "SBI",
+      bankAccount: "30001234567",
+      ifsc: "SBIN0001234",
+    },
+  });
+
+  const existingWageRule = await prisma.wageRule.findFirst({ where: { outletId: dineInOutlet.id, role: UserRole.biller } });
+  if (!existingWageRule) {
+    await prisma.wageRule.createMany({
+      data: [
+        { outletId: dineInOutlet.id, role: UserRole.biller, wageType: "hourly", hourlyRate: 150 },
+        { outletId: dineInOutlet.id, role: UserRole.captain, wageType: "hourly", hourlyRate: 140 },
+        { outletId: dineInOutlet.id, role: UserRole.manager, wageType: "monthly", monthlySalary: 45000 },
+        { outletId: dineInOutlet.id, role: UserRole.chef, wageType: "monthly", monthlySalary: 38000 },
+      ],
+    });
+  }
+
+  const closingDate = new Date();
+  closingDate.setHours(0, 0, 0, 0);
+  await prisma.stockClosing.upsert({
+    where: { outletId_date: { outletId: dineInOutlet.id, date: closingDate } },
+    update: {},
+    create: {
+      outletId: dineInOutlet.id,
+      date: closingDate,
+      status: "completed",
+      accuracyPct: 100,
+      closedAt: new Date(),
+    },
+  });
+
+  await prisma.holiday.createMany({
+    data: [
+      { outletId: dineInOutlet.id, date: new Date(new Date().getFullYear(), 0, 26), name: "Republic Day" },
+      { outletId: dineInOutlet.id, date: new Date(new Date().getFullYear(), 7, 15), name: "Independence Day" },
+    ],
+    skipDuplicates: true,
+  });
+
   const shiftStart = new Date();
   shiftStart.setHours(10, 0, 0, 0);
   const shiftEnd = new Date();
@@ -499,12 +734,16 @@ async function main() {
       })
     : null;
 
+  await prisma.category.updateMany({ data: { nameHi: null } });
+  await prisma.menuItem.updateMany({ data: { nameHi: null } });
+
   console.log("Seed complete!");
-  console.log("Login credentials (password123 for all):");
-  console.log("  Owner:       owner@kaanafoods.in       → http://localhost:3010");
-  console.log("  Manager:     manager@kaanafoods.in     → http://localhost:3010");
-  console.log("  Storekeeper: storekeeper@kaanafoods.in → http://localhost:3010");
-  console.log("  Accountant:  accountant@kaanafoods.in  → http://localhost:3010");
+  console.log("Login credentials (password123 for all) — sign in once at http://localhost:3010");
+  console.log("  Owner:       owner@kaanafoods.in       → Owner console (payroll, staff, reports)");
+  console.log("  Manager:     manager@kaanafoods.in     → Owner console");
+  console.log("  Storekeeper: storekeeper@kaanafoods.in → POS /inventory");
+  console.log("  Accountant:  accountant@kaanafoods.in  → Owner console /finance/payroll");
+  console.log("  Biller:      biller@kaanafoods.in       → POS /floor");
   console.log("  Platform:    (super_admin only)        → http://localhost:3000");
   console.log("Outlet:", dineInOutlet.name, dineInOutlet.id);
   console.log("Demo PO:", demoPO?.poNumber ?? "n/a", demoPO?.id ?? "");

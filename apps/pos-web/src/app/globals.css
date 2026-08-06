@@ -1,4 +1,63 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
-body { @apply bg-gray-900 text-white; }
+
+@layer base {
+  body {
+    @apply bg-surface text-slate-900 antialiased;
+  }
+}
+
+@layer components {
+  .pos-chip {
+    @apply px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors;
+  }
+
+  .pos-table-card {
+    @apply relative flex flex-col items-center justify-center rounded-2xl border-2 p-4 min-h-[108px] transition-all duration-150;
+  }
+
+  .pos-menu-card {
+    @apply relative flex flex-col rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all duration-150;
+  }
+
+  .pos-menu-card:active:not(:disabled) {
+    @apply scale-[0.98];
+  }
+
+  .pos-qty-btn {
+    @apply flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 transition-colors;
+  }
+
+  .pos-action-kot {
+    @apply w-full py-3 rounded-xl font-semibold text-amber-950 bg-amber-400 hover:bg-amber-300 disabled:opacity-40 transition-colors shadow-sm;
+  }
+
+  .pos-action-pay {
+    @apply w-full py-3 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 transition-colors shadow-sm;
+  }
+
+  .pos-action-print {
+    @apply w-full py-3 rounded-xl font-semibold text-blue-900 bg-blue-100 hover:bg-blue-200 disabled:opacity-40 transition-colors border border-blue-200;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .bill-print-root,
+  .bill-print-root * {
+    visibility: visible;
+  }
+
+  .bill-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    opacity: 1 !important;
+    z-index: 99999;
+  }
+}

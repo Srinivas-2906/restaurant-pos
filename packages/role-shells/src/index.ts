@@ -13,6 +13,8 @@ export interface NavItem {
   label: string;
   href: string;
   icon?: string;
+  /** Opens in POS app (localhost:3001) with auth handoff */
+  externalPos?: boolean;
 }
 
 export interface OperationsModule {
@@ -24,14 +26,21 @@ export interface OperationsModule {
   pathPrefix: string;
 }
 
-/** Central restaurant console modules (operations-web) */
+export const OPERATIONS_WEB_URL = "http://localhost:3010";
+export const HQ_ADMIN_URL = "http://localhost:3000";
+export const POS_WEB_URL = "http://localhost:3001";
+export const KDS_WEB_URL = "http://localhost:3002";
+
+/** Single sign-in portal for all restaurant staff */
+export const LOGIN_PORTAL_URL = OPERATIONS_WEB_URL;
+
+/** Owner / back-office console (operations-web) */
 export const OPERATIONS_MODULES: OperationsModule[] = [
   { id: "overview", label: "Overview", href: "/overview", roles: ["owner", "manager"], pathPrefix: "/overview" },
   { id: "orders", label: "Orders", href: "/orders", roles: ["owner", "manager"], pathPrefix: "/orders" },
   { id: "menu", label: "Menu", href: "/menu", roles: ["owner", "manager"], pathPrefix: "/menu" },
-  { id: "inventory", label: "Inventory", href: "/inventory", roles: ["owner", "manager", "inventory_manager"], pathPrefix: "/inventory" },
-  { id: "purchases", label: "Purchases", href: "/purchases", roles: ["owner", "manager", "inventory_manager"], pathPrefix: "/purchases" },
-  { id: "finance", label: "Finance", href: "/finance", roles: ["owner", "accountant"], pathPrefix: "/finance" },
+  { id: "payroll", label: "Payroll", href: "/finance/payroll", roles: ["owner", "accountant"], pathPrefix: "/finance/payroll" },
+  { id: "finance", label: "Finance", href: "/finance", roles: ["owner"], pathPrefix: "/finance" },
   { id: "staff", label: "Staff", href: "/staff", roles: ["owner", "manager"], pathPrefix: "/staff" },
   { id: "customers", label: "Customers", href: "/customers", roles: ["owner", "manager"], pathPrefix: "/customers" },
   { id: "reports", label: "Reports", href: "/reports", roles: ["owner", "manager", "accountant"], pathPrefix: "/reports" },
@@ -39,17 +48,34 @@ export const OPERATIONS_MODULES: OperationsModule[] = [
   { id: "devices", label: "Devices", href: "/devices", roles: ["owner", "manager"], pathPrefix: "/devices" },
   { id: "settings", label: "Settings", href: "/settings", roles: ["owner"], pathPrefix: "/settings" },
   { id: "support", label: "Support", href: "/support", roles: ["owner", "manager"], pathPrefix: "/support" },
+  {
+    id: "pos_store",
+    label: "Store & Inventory",
+    href: "/inventory",
+    roles: ["owner", "manager"],
+    pathPrefix: "/inventory",
+  },
 ];
 
-export const OPERATIONS_WEB_URL = "http://localhost:3010";
-export const HQ_ADMIN_URL = "http://localhost:3000";
+/** POS counter app modules (inventory lives here) */
+export const POS_MODULES: OperationsModule[] = [
+  { id: "floor", label: "Counter", href: "/floor", roles: ["biller", "manager"], pathPrefix: "/floor" },
+  { id: "inventory", label: "Inventory", href: "/inventory", roles: ["biller", "inventory_manager", "manager"], pathPrefix: "/inventory" },
+  { id: "purchases", label: "Purchases", href: "/purchases", roles: ["biller", "inventory_manager", "manager"], pathPrefix: "/purchases" },
+];
 
-/** Default entry route per role within operations-web */
+/** Default entry route per role within operations-web (owner app) */
 export const OPERATIONS_ENTRY: Partial<Record<UserRole, string>> = {
   owner: "/overview",
   manager: "/overview",
+  accountant: "/finance/payroll",
+};
+
+/** Default entry route per role within POS */
+export const POS_ENTRY: Partial<Record<UserRole, string>> = {
+  biller: "/floor",
   inventory_manager: "/inventory",
-  accountant: "/finance",
+  manager: "/floor",
 };
 
 export interface RoleShell {
@@ -75,29 +101,28 @@ export const ROLE_SHELLS: Record<UserRole, RoleShell> = {
   },
   owner: {
     role: "owner",
-    appName: "Kaana Operations",
+    appName: "Kaana Owner Console",
     entryRoute: "/overview",
     nav: [],
     allowedApiPrefixes: ["/api"],
   },
   manager: {
     role: "manager",
-    appName: "Kaana Operations",
+    appName: "Kaana Owner Console",
     entryRoute: "/overview",
     nav: [],
     allowedApiPrefixes: ["/api/orders", "/api/reservations", "/api/approvals", "/api/devices", "/api/staff"],
   },
   biller: {
     role: "biller",
-    appName: "Kaana Counter POS",
+    appName: "Kaana POS",
     entryRoute: "/floor",
     nav: [
-      { id: "floor", label: "Floor", href: "/floor" },
-      { id: "inbox", label: "Order Inbox", href: "/inbox" },
-      { id: "dayclose", label: "Day Close", href: "/day-close" },
-      { id: "diagnostics", label: "Diagnostics", href: "/diagnostics" },
+      { id: "floor", label: "Counter", href: "/floor" },
+      { id: "inventory", label: "Inventory", href: "/inventory" },
+      { id: "purchases", label: "Purchases", href: "/purchases" },
     ],
-    allowedApiPrefixes: ["/api/orders", "/api/menu", "/hub"],
+    allowedApiPrefixes: ["/api/orders", "/api/menu", "/api/inventory", "/api/staff", "/hub"],
   },
   captain: {
     role: "captain",
@@ -122,15 +147,18 @@ export const ROLE_SHELLS: Record<UserRole, RoleShell> = {
   },
   inventory_manager: {
     role: "inventory_manager",
-    appName: "Kaana Operations",
+    appName: "Kaana POS",
     entryRoute: "/inventory",
-    nav: [],
+    nav: [
+      { id: "inventory", label: "Inventory", href: "/inventory" },
+      { id: "purchases", label: "Purchases", href: "/purchases" },
+    ],
     allowedApiPrefixes: ["/api/inventory", "/hub/inventory"],
   },
   accountant: {
     role: "accountant",
-    appName: "Kaana Operations",
-    entryRoute: "/finance",
+    appName: "Kaana Owner Console",
+    entryRoute: "/finance/payroll",
     nav: [],
     allowedApiPrefixes: ["/api/reports", "/api/payroll"],
   },
@@ -140,23 +168,51 @@ export const APP_URLS: Record<UserRole, string> = {
   super_admin: HQ_ADMIN_URL,
   owner: OPERATIONS_WEB_URL,
   manager: OPERATIONS_WEB_URL,
-  biller: "http://localhost:3001",
-  captain: "http://localhost:3002",
-  chef: "http://localhost:5173",
-  inventory_manager: OPERATIONS_WEB_URL,
+  biller: POS_WEB_URL,
+  captain: "http://localhost:8081",
+  chef: KDS_WEB_URL,
+  inventory_manager: POS_WEB_URL,
   accountant: OPERATIONS_WEB_URL,
 };
 
 const RESTAURANT_ROLES: UserRole[] = ["owner", "manager", "inventory_manager", "accountant"];
+const POS_ROLES: UserRole[] = ["biller", "inventory_manager"];
 
 export function isRestaurantRole(role: UserRole): boolean {
   return RESTAURANT_ROLES.includes(role);
+}
+
+export function isPosRole(role: UserRole): boolean {
+  return POS_ROLES.includes(role);
+}
+
+export function usesPosApp(role: UserRole): boolean {
+  return role === "biller" || role === "inventory_manager";
 }
 
 export function getNavForRoles(roles: UserRole[]): NavItem[] {
   const seen = new Set<string>();
   const items: NavItem[] = [];
   for (const mod of OPERATIONS_MODULES) {
+    if (mod.id === "pos_store") {
+      if (mod.roles.some((r) => roles.includes(r)) && !seen.has(mod.id)) {
+        seen.add(mod.id);
+        items.push({ id: mod.id, label: mod.label, href: mod.href, externalPos: true });
+      }
+      continue;
+    }
+    if (mod.roles.some((r) => roles.includes(r)) && !seen.has(mod.id)) {
+      seen.add(mod.id);
+      items.push({ id: mod.id, label: mod.label, href: mod.href });
+    }
+  }
+  return items;
+}
+
+export function getPosNavForRoles(roles: UserRole[]): NavItem[] {
+  const seen = new Set<string>();
+  const items: NavItem[] = [];
+  for (const mod of POS_MODULES) {
     if (mod.roles.some((r) => roles.includes(r)) && !seen.has(mod.id)) {
       seen.add(mod.id);
       items.push({ id: mod.id, label: mod.label, href: mod.href });
@@ -167,7 +223,20 @@ export function getNavForRoles(roles: UserRole[]): NavItem[] {
 
 export function canAccessRoute(roles: UserRole[], pathname: string): boolean {
   if (roles.includes("owner")) return true;
+  if (pathname.startsWith("/inventory") || pathname.startsWith("/purchases")) {
+    return roles.some((r) => ["owner", "manager"].includes(r));
+  }
   return OPERATIONS_MODULES.some(
+    (m) =>
+      m.id !== "pos_store" &&
+      m.roles.some((r) => roles.includes(r)) &&
+      (pathname === m.pathPrefix || pathname.startsWith(`${m.pathPrefix}/`)),
+  );
+}
+
+export function canAccessPosRoute(roles: UserRole[], pathname: string): boolean {
+  if (roles.includes("owner")) return true;
+  return POS_MODULES.some(
     (m) => m.roles.some((r) => roles.includes(r)) && (pathname === m.pathPrefix || pathname.startsWith(`${m.pathPrefix}/`)),
   );
 }
@@ -183,6 +252,9 @@ export function canAccessApi(role: UserRole, path: string): boolean {
 }
 
 export function getAppEntryForRole(role: UserRole): string {
+  if (usesPosApp(role)) {
+    return POS_ENTRY[role] ?? getShellForRole(role).entryRoute;
+  }
   return OPERATIONS_ENTRY[role] ?? getShellForRole(role).entryRoute;
 }
 
@@ -196,9 +268,80 @@ export function resolveAllRoles(user: { roles?: Array<{ role: string }> }): User
   return roles.length > 0 ? roles : ["biller"];
 }
 
+export interface AuthHandoffPayload {
+  accessToken: string;
+  refreshToken: string;
+  user: unknown;
+  outletId?: string | null;
+}
+
+export function buildRedirectWithAuth(baseUrl: string, path: string, handoff: AuthHandoffPayload): string {
+  const url = new URL(path.startsWith("/") ? path : `/${path}`, baseUrl);
+  url.searchParams.set("token", handoff.accessToken);
+  url.searchParams.set("refreshToken", handoff.refreshToken);
+  url.searchParams.set("user", encodeURIComponent(JSON.stringify(handoff.user)));
+  if (handoff.outletId) url.searchParams.set("outletId", handoff.outletId);
+  return url.toString();
+}
+
 export function redirectUrlForRole(role: UserRole, baseUrls: Partial<Record<UserRole, string>> = {}): string {
   const base = baseUrls[role] ?? APP_URLS[role] ?? APP_URLS.biller;
   return `${base}${getAppEntryForRole(role)}`;
+}
+
+export function redirectUrlForRoleWithAuth(
+  role: UserRole,
+  handoff: AuthHandoffPayload,
+  baseUrls: Partial<Record<UserRole, string>> = {},
+): string {
+  const base = baseUrls[role] ?? APP_URLS[role] ?? APP_URLS.biller;
+  return buildRedirectWithAuth(base, getAppEntryForRole(role), handoff);
+}
+
+export function buildPosLink(path: string, handoff: AuthHandoffPayload): string {
+  return buildRedirectWithAuth(POS_WEB_URL, path, handoff);
+}
+
+export function getLoginPortalUrl(returnTo?: string): string {
+  if (!returnTo) return LOGIN_PORTAL_URL;
+  return `${LOGIN_PORTAL_URL}/?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+/** Apply auth tokens passed from the unified login portal (client-side only). */
+export function applyAuthHandoffFromSearchParams(searchParams: URLSearchParams): boolean {
+  if (typeof window === "undefined") return false;
+  const token = searchParams.get("token");
+  const userRaw = searchParams.get("user");
+  if (!token || !userRaw) return false;
+  localStorage.setItem("token", token);
+  const refresh = searchParams.get("refreshToken");
+  if (refresh) localStorage.setItem("refreshToken", refresh);
+  try {
+    localStorage.setItem("user", decodeURIComponent(userRaw));
+  } catch {
+    localStorage.setItem("user", userRaw);
+  }
+  const outletId = searchParams.get("outletId");
+  if (outletId) localStorage.setItem("selectedOutletId", outletId);
+  const user = JSON.parse(localStorage.getItem("user") || "{}") as {
+    id?: string;
+    roles?: Array<{ role: string }>;
+  };
+  if (user.id) localStorage.setItem("userId", user.id);
+  return true;
+}
+
+export function readAuthHandoffFromStorage(): AuthHandoffPayload | null {
+  if (typeof window === "undefined") return null;
+  const token = localStorage.getItem("token");
+  const userRaw = localStorage.getItem("user");
+  if (!token || !userRaw) return null;
+  return {
+    accessToken: token,
+    refreshToken: localStorage.getItem("refreshToken") ?? "",
+    user: JSON.parse(userRaw),
+    outletId: localStorage.getItem("selectedOutletId"),
+  };
 }
 
 export function appHomeForRole(role: UserRole, baseUrls: Partial<Record<UserRole, string>> = {}): string {

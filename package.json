@@ -20,6 +20,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.22",
     "prettier": "^3.4.2",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2"
@@ -30,6 +32,8 @@
   "overrides": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "next": "14.2.18"
   },
   "packageManager": "npm@10.9.2"

@@ -2,17 +2,20 @@ import { Controller, Post, Body, UseGuards, Request } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./guards";
+import { Public } from "./public.decorator";
 
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Public()
   @Post("login")
   login(@Body() body: { email: string; password: string }) {
     return this.authService.login(body.email, body.password);
   }
 
+  @Public()
   @Post("refresh")
   refresh(@Body() body: { refreshToken: string }) {
     return this.authService.refresh(body.refreshToken);
