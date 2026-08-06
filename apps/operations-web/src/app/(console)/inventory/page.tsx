@@ -1,5 +1,5 @@
-import { InventoryModule } from "@/modules/inventory/InventoryModule";
+import { RedirectToPos } from "@/components/RedirectToPos";
 
 export default function InventoryPage() {
-  return <InventoryModule />;
+  return <RedirectToPos path="/inventory" />;
 }

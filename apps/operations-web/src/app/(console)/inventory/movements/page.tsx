@@ -1,5 +1,5 @@
-import { MovementsModule } from "@/modules/inventory/MovementsModule";
+import { RedirectToPos } from "@/components/RedirectToPos";
 
 export default function MovementsPage() {
-  return <MovementsModule />;
+  return <RedirectToPos path="/inventory/movements" />;
 }

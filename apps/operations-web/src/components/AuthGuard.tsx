@@ -2,7 +2,14 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getAppEntryForRole, redirectUrlForRole, resolvePrimaryRole, resolveAllRoles } from "@kaana/role-shells";
+import {
+  getAppEntryForRole,
+  readAuthHandoffFromStorage,
+  redirectUrlForRoleWithAuth,
+  resolveAllRoles,
+  resolvePrimaryRole,
+  usesPosApp,
+} from "@kaana/role-shells";
 import { getUser } from "@/lib/api";
 import { userCanAccess } from "@/lib/permissions";
 
@@ -21,11 +28,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const primary = resolvePrimaryRole(user);
     if (primary === "super_admin") {
-      window.location.href = redirectUrlForRole("super_admin");
+      const handoff = readAuthHandoffFromStorage();
+      if (handoff) window.location.href = redirectUrlForRoleWithAuth("super_admin", handoff);
+      return;
+    }
+    if (usesPosApp(primary)) {
+      const handoff = readAuthHandoffFromStorage();
+      if (handoff) window.location.href = redirectUrlForRoleWithAuth(primary, handoff);
       return;
     }
     if (primary === "biller" || primary === "captain" || primary === "chef") {
-      window.location.href = redirectUrlForRole(primary);
+      const handoff = readAuthHandoffFromStorage();
+      if (handoff) window.location.href = redirectUrlForRoleWithAuth(primary, handoff);
       return;
     }
 

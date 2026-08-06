@@ -1,5 +1,5 @@
-import { WastageModule } from "@/modules/inventory/PurchasesModule";
+import { RedirectToPos } from "@/components/RedirectToPos";
 
 export default function WastagePage() {
-  return <WastageModule />;
+  return <RedirectToPos path="/purchases/wastage" />;
 }

@@ -3,8 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UtensilsCrossed } from "lucide-react";
-import { getAppEntryForRole, redirectUrlForRole, resolvePrimaryRole } from "@kaana/role-shells";
-import { login } from "@/lib/api";
+import {
+  getAppEntryForRole,
+  redirectUrlForRoleWithAuth,
+  resolvePrimaryRole,
+  usesPosApp,
+} from "@kaana/role-shells";
+import { login, setSelectedOutletId } from "@/lib/api";
+
+function getOutletIdFromUser(user: { roles?: Array<{ outletId?: string | null }> }) {
+  return user.roles?.find((r) => r.outletId)?.outletId ?? user.roles?.[0]?.outletId ?? null;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,14 +29,21 @@ export default function LoginPage() {
     try {
       const data = await login(email, password);
       const role = resolvePrimaryRole(data.user);
-      if (role === "super_admin") {
-        window.location.href = redirectUrlForRole("super_admin");
+      const outletId = getOutletIdFromUser(data.user);
+      if (outletId) setSelectedOutletId(outletId);
+
+      const handoff = {
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user,
+        outletId,
+      };
+
+      if (role === "super_admin" || usesPosApp(role) || role === "captain" || role === "chef") {
+        window.location.href = redirectUrlForRoleWithAuth(role, handoff);
         return;
       }
-      if (role === "biller" || role === "captain" || role === "chef") {
-        window.location.href = redirectUrlForRole(role);
-        return;
-      }
+
       router.push(getAppEntryForRole(role));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -45,16 +61,20 @@ export default function LoginPage() {
           </div>
           <div>
             <p className="text-white font-bold text-xl">KAANA</p>
-            <p className="text-white/60 text-sm">RESTAURANT OPERATIONS</p>
+            <p className="text-white/60 text-sm">ONE LOGIN FOR YOUR RESTAURANT</p>
           </div>
         </div>
         <div>
           <h2 className="text-3xl font-bold text-white leading-tight mb-4">
-            Run your restaurant<br />from one console.
+            POS, inventory, payroll<br />— one place to sign in.
           </h2>
           <p className="text-white/70 max-w-md">
-            Inventory, orders, finance, staff, and reports — unified for owners, managers, and back-office teams.
+            Counter staff go to POS. Owners manage payroll and reports here. No separate logins to remember.
           </p>
+          <ul className="mt-6 space-y-2 text-white/60 text-sm">
+            <li>• Biller / storekeeper → POS (counter + inventory)</li>
+            <li>• Owner / accountant → Owner console (payroll, staff, reports)</li>
+          </ul>
         </div>
         <p className="text-white/40 text-sm">© Kaana Foods</p>
       </div>
@@ -65,11 +85,11 @@ export default function LoginPage() {
             <div className="w-10 h-10 rounded-full bg-kaana flex items-center justify-center">
               <UtensilsCrossed className="w-5 h-5 text-white" />
             </div>
-            <p className="font-bold text-gray-900">Kaana Operations</p>
+            <p className="font-bold text-gray-900">Kaana</p>
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
-          <p className="text-gray-500 mb-8">Sign in to your operations console</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Sign in</h1>
+          <p className="text-gray-500 mb-8">We&apos;ll take you to the right app automatically</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -100,7 +120,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full bg-kaana hover:bg-kaana-dark text-white py-2.5 rounded-xl font-medium transition-colors disabled:opacity-50"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? "Signing in…" : "Continue"}
             </button>
           </form>
         </div>

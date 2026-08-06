@@ -1,5 +1,5 @@
-import { MaterialsModule } from "@/modules/inventory/MaterialsModule";
+import { RedirectToPos } from "@/components/RedirectToPos";
 
 export default function MaterialsPage() {
-  return <MaterialsModule />;
+  return <RedirectToPos path="/inventory/materials" />;
 }

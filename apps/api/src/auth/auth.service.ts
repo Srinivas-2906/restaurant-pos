@@ -33,7 +33,8 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const primaryRole = user.roleAssignments[0];
+    const primaryRole =
+      user.roleAssignments.find((r) => r.outletId) ?? user.roleAssignments[0];
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,

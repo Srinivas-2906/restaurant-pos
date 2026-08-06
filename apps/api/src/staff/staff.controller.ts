@@ -103,8 +103,11 @@ export class StaffController {
 
   @Post("outlets/:outletId/leaves")
   @Roles("manager", "owner")
-  createLeave(@Param("outletId") outletId: string, @Body() body: Record<string, unknown>) {
-    return this.staffService.createLeave({ outletId, ...(body as never) });
+  createLeave(
+    @Param("outletId") outletId: string,
+    @Body() body: { userId: string; type?: string; startDate: string; endDate: string; reason?: string },
+  ) {
+    return this.staffService.createLeave({ outletId, ...body });
   }
 
   @Patch("leaves/:id/status")

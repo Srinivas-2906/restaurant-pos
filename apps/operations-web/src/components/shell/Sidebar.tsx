@@ -23,10 +23,10 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
         <div className="w-10 h-10 rounded-full bg-kaana flex items-center justify-center shrink-0">
           <UtensilsCrossed className="w-5 h-5 text-white" />
         </div>
-        <div>
-          <p className="text-white font-bold text-sm leading-tight">KAANA</p>
-          <p className="text-white/60 text-xs">RESTAURANT</p>
-        </div>
+          <div>
+            <p className="text-white font-bold text-sm leading-tight">KAANA</p>
+            <p className="text-white/60 text-xs">OWNER CONSOLE</p>
+          </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
@@ -36,6 +36,7 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             href={item.href}
             label={item.label}
             moduleId={item.id}
+            externalPos={item.externalPos}
             onNavigate={onClose}
           />
         ))}

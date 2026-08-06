@@ -1,5 +1,5 @@
-import { TransfersModule } from "@/modules/inventory/TransfersModule";
+import { RedirectToPos } from "@/components/RedirectToPos";
 
 export default function TransfersPage() {
-  return <TransfersModule />;
+  return <RedirectToPos path="/inventory/transfers" />;
 }

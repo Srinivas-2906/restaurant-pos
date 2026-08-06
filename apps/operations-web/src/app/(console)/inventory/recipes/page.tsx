@@ -1,5 +1,5 @@
-import { RecipesModule } from "@/modules/inventory/RecipesModule";
+import { RedirectToPos } from "@/components/RedirectToPos";
 
 export default function RecipesPage() {
-  return <RecipesModule />;
+  return <RedirectToPos path="/inventory/recipes" />;
 }

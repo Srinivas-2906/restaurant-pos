@@ -109,7 +109,7 @@ export class PayrollService {
               periodStart: start,
               periodEnd: end,
               workedDays,
-              weeklyOff: Math.floor(periodDays / 7),
+              weeklyOffDays: Math.floor(periodDays / 7),
               holidays: holidayCount,
               paidLeaveDays,
             })

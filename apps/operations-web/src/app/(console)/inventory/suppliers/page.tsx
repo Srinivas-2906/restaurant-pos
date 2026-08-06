@@ -1,5 +1,5 @@
-import { SuppliersModule } from "@/modules/inventory/SuppliersModule";
+import { RedirectToPos } from "@/components/RedirectToPos";
 
 export default function SuppliersPage() {
-  return <SuppliersModule />;
+  return <RedirectToPos path="/inventory/suppliers" />;
 }

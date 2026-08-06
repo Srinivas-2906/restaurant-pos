@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { EventsGateway } from "../events/events.gateway";
 import { InventoryService } from "../inventory/inventory.service";
 import { AuditService } from "../audit/audit.service";
+import { PrintBridgeService } from "../print/print-bridge.service";
 import { Decimal } from "@prisma/client/runtime/library";
 
 @Injectable()
@@ -12,6 +13,7 @@ export class OrdersService {
     private events: EventsGateway,
     private inventory: InventoryService,
     private audit: AuditService,
+    private printBridge: PrintBridgeService,
   ) {}
 
   private async nextOrderNumber(outletId: string): Promise<string> {
@@ -61,7 +63,7 @@ export class OrdersService {
       include: { items: true },
     });
 
-    if (!["draft", "open"].includes(order.status)) {
+    if (!["draft", "open", "kot_fired", "billed"].includes(order.status)) {
       throw new BadRequestException("Cannot modify order in current status");
     }
 
@@ -76,10 +78,23 @@ export class OrdersService {
 
     const unitPrice = Number(menuItem.basePrice) + Number(variant?.priceDelta ?? 0);
     const quantity = data.quantity ?? 1;
-    const lineTotal = unitPrice * quantity;
     const taxRate = menuItem.taxRule
       ? Number(menuItem.taxRule.cgstRate) + Number(menuItem.taxRule.sgstRate)
       : 0;
+
+    const existing = order.items.find(
+      (i) =>
+        i.menuItemId === data.menuItemId &&
+        (i.variantId ?? null) === (data.variantId ?? null) &&
+        !i.kotId &&
+        i.status === "pending",
+    );
+
+    if (existing) {
+      return this.updateItemQuantity(orderId, existing.id, existing.quantity + quantity);
+    }
+
+    const lineTotal = unitPrice * quantity;
     const taxAmount = (lineTotal * taxRate) / 100;
 
     const item = await this.prisma.orderItem.create({
@@ -97,10 +112,84 @@ export class OrdersService {
       },
     });
 
+    if (order.status === "kot_fired" || order.status === "billed") {
+      await this.prisma.order.update({ where: { id: orderId }, data: { status: "open" } });
+      if (order.tableId) {
+        await this.prisma.table.update({ where: { id: order.tableId }, data: { status: "seated" } });
+      }
+    }
+
     await this.recalculateOrder(orderId);
     const updated = await this.findOne(orderId);
     this.events.emitOrderUpdate(order.outletId, updated);
     return item;
+  }
+
+  async updateItemQuantity(orderId: string, itemId: string, quantity: number) {
+    if (quantity < 1) {
+      return this.removeItem(orderId, itemId);
+    }
+
+    const item = await this.prisma.orderItem.findFirstOrThrow({
+      where: { id: itemId, orderId },
+      include: { menuItem: { include: { taxRule: true } } },
+    });
+
+    if (item.kotId || item.status !== "pending") {
+      throw new BadRequestException("Cannot change quantity after KOT is fired");
+    }
+
+    const lineTotal = Number(item.unitPrice) * quantity;
+    const taxRate = item.menuItem.taxRule
+      ? Number(item.menuItem.taxRule.cgstRate) + Number(item.menuItem.taxRule.sgstRate)
+      : 0;
+    const taxAmount = (lineTotal * taxRate) / 100;
+
+    await this.prisma.orderItem.update({
+      where: { id: itemId },
+      data: {
+        quantity,
+        taxAmount,
+        totalPrice: lineTotal + taxAmount,
+      },
+    });
+
+    await this.recalculateOrder(orderId);
+    const order = await this.findOne(orderId);
+    this.events.emitOrderUpdate(order.outletId, order);
+    return order;
+  }
+
+  async removeItem(orderId: string, itemId: string) {
+    const item = await this.prisma.orderItem.findFirstOrThrow({
+      where: { id: itemId, orderId },
+    });
+
+    if (item.kotId || item.status !== "pending") {
+      throw new BadRequestException("Cannot remove item after KOT is fired");
+    }
+
+    await this.prisma.orderItem.delete({ where: { id: itemId } });
+    await this.recalculateOrder(orderId);
+    const order = await this.findOne(orderId);
+    this.events.emitOrderUpdate(order.outletId, order);
+    return order;
+  }
+
+  getOpenOrderForTable(outletId: string, tableId: string) {
+    return this.prisma.order.findFirst({
+      where: {
+        outletId,
+        tableId,
+        status: { in: ["draft", "open", "kot_fired", "billed"] },
+      },
+      include: {
+        items: { include: { menuItem: true }, orderBy: { id: "asc" } },
+        table: true,
+        kots: { include: { kitchenStation: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   async fireKOT(orderId: string) {
@@ -145,18 +234,88 @@ export class OrdersService {
 
       kots.push(kot);
       this.events.emitKOTUpdate(stationId, kot);
-
-      for (const item of items) {
-        await this.inventory.deductForSale(order.outletId, item.menuItemId, item.quantity);
-      }
     }
+
+    if (kots.length === 0) {
+      throw new BadRequestException("No pending items to fire to kitchen");
+    }
+
+    const hasUnfired = await this.prisma.orderItem.count({
+      where: { orderId, kotId: null },
+    });
 
     await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: "kot_fired" },
+      data: { status: hasUnfired > 0 ? "open" : "kot_fired" },
     });
 
     return kots;
+  }
+
+  async printBill(orderId: string) {
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: {
+        items: { orderBy: { id: "asc" } },
+        table: true,
+        outlet: { include: { brand: true } },
+      },
+    });
+
+    if (order.status === "settled" || order.status === "cancelled" || order.status === "voided") {
+      throw new BadRequestException("Cannot print bill for a closed order");
+    }
+    if (order.items.length === 0) {
+      throw new BadRequestException("Add items before printing the bill");
+    }
+
+    const wasBilled = order.status === "billed";
+
+    if (!wasBilled) {
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { status: "billed" },
+      });
+      if (order.tableId) {
+        await this.prisma.table.update({
+          where: { id: order.tableId },
+          data: { status: "billed" },
+        });
+      }
+    }
+
+    const printedAt = new Date();
+    const bill = {
+      type: "proforma" as const,
+      orderNumber: order.orderNumber,
+      tableNumber: order.table?.number ?? null,
+      guestCount: order.guestCount,
+      printedAt: printedAt.toISOString(),
+      isReprint: wasBilled,
+      outlet: {
+        name: order.outlet.name,
+        address: order.outlet.address,
+        city: order.outlet.city,
+        gstin: order.outlet.gstin,
+      },
+      items: order.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        totalPrice: Number(item.totalPrice),
+      })),
+      subtotal: Number(order.subtotal),
+      taxAmount: Number(order.taxAmount),
+      totalAmount: Number(order.totalAmount),
+      disclaimer: "Proforma bill — not a tax invoice. GST invoice issued on payment.",
+    };
+
+    await this.printBridge.printProformaBill(bill);
+
+    const updated = await this.findOne(orderId);
+    this.events.emitOrderUpdate(order.outletId, updated);
+
+    return { bill, order: updated };
   }
 
   async settle(orderId: string, data: {
@@ -165,14 +324,22 @@ export class OrdersService {
   }) {
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id: orderId },
-      include: { items: true, outlet: true },
+      include: { items: { include: { menuItem: true } }, outlet: true },
     });
+
+    if (order.status === "settled") {
+      throw new BadRequestException("Order is already settled");
+    }
 
     const discount = data.discountAmount ?? 0;
     const totalPaid = data.payments.reduce((s, p) => s + p.amount, 0);
 
     if (totalPaid < Number(order.totalAmount) - discount) {
       throw new BadRequestException("Insufficient payment amount");
+    }
+
+    for (const item of order.items) {
+      await this.inventory.deductForSale(order.outletId, item.menuItemId, item.quantity, `${orderId}:${item.id}`);
     }
 
     await this.prisma.payment.createMany({

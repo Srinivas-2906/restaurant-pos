@@ -9,7 +9,7 @@ export class InventoryService {
     private menuService: MenuService,
   ) {}
 
-  async deductForSale(outletId: string, menuItemId: string, quantity: number) {
+  async deductForSale(outletId: string, menuItemId: string, quantity: number, reference?: string) {
     const recipe = await this.prisma.recipe.findUnique({
       where: { menuItemId },
       include: { items: { include: { ingredient: true } } },
@@ -17,9 +17,17 @@ export class InventoryService {
 
     if (!recipe) return;
 
+    const saleRef = reference ?? menuItemId;
+
     for (const ri of recipe.items) {
       const deductQty = Number(ri.quantity) * quantity;
       const ingredient = ri.ingredient;
+      const ledgerRef = `${saleRef}:${ingredient.id}`;
+
+      const existing = await this.prisma.stockLedger.findFirst({
+        where: { outletId, ingredientId: ingredient.id, type: "sale", reference: ledgerRef },
+      });
+      if (existing) continue;
 
       const newStock = Number(ingredient.currentStock) - deductQty;
       await this.prisma.ingredient.update({
@@ -34,7 +42,7 @@ export class InventoryService {
           type: "sale",
           quantity: -deductQty,
           balanceAfter: Math.max(0, newStock),
-          reference: menuItemId,
+          reference: ledgerRef,
         },
       });
 

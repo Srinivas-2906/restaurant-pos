@@ -1,5 +1,5 @@
-import { NewPOModule } from "@/modules/inventory/PurchasesModule";
+import { RedirectToPos } from "@/components/RedirectToPos";
 
 export default function NewPurchasePage() {
-  return <NewPOModule />;
+  return <RedirectToPos path="/purchases/new" />;
 }
