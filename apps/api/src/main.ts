@@ -24,11 +24,33 @@ function corsOrigins(): string[] {
   return [...new Set([...LOCAL_ORIGINS, ...extra])];
 }
 
+/** Cloud Run exposes the same service on multiple hostnames; allow all Kaana app hosts. */
+function isAllowedCloudRunOrigin(origin: string): boolean {
+  if (process.env.NODE_ENV !== "production") return false;
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return (
+      protocol === "https:" &&
+      hostname.startsWith("kaana-") &&
+      (hostname.endsWith(".run.app") || hostname.endsWith(".a.run.app"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: corsOrigins(),
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const allowed = corsOrigins();
+      if (allowed.includes(origin) || isAllowedCloudRunOrigin(origin)) {
+        return callback(null, true);
+      }
+      callback(null, false);
+    },
     credentials: true,
   });
 

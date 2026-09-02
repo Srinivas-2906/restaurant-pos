@@ -1,0 +1,4 @@
+NODE_ENV: production
+JWT_EXPIRES_IN: 15m
+JWT_REFRESH_EXPIRES_IN: 7d
+CORS_ORIGINS: "https://kaana-operations-web-888176696307.asia-south1.run.app,https://kaana-operations-web-nhgux56o2a-el.a.run.app,https://kaana-pos-web-888176696307.asia-south1.run.app,https://kaana-pos-web-nhgux56o2a-el.a.run.app,https://kaana-kds-web-888176696307.asia-south1.run.app,https://kaana-kds-web-nhgux56o2a-el.a.run.app,https://kaana-captain-web-888176696307.asia-south1.run.app,https://kaana-captain-web-nhgux56o2a-el.a.run.app"
