@@ -5,11 +5,14 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/inventory", label: "Overview", exact: true },
-  { href: "/inventory/materials", label: "Materials" },
+  { href: "/inventory/items", label: "Items" },
   { href: "/inventory/recipes", label: "Recipes" },
-  { href: "/inventory/suppliers", label: "Suppliers" },
+  { href: "/inventory/stock-count", label: "Stock Count" },
+  { href: "/inventory/wastage", label: "Wastage" },
   { href: "/inventory/movements", label: "Movements" },
   { href: "/inventory/transfers", label: "Transfers" },
+  { href: "/inventory/production", label: "Production" },
+  { href: "/inventory/reports", label: "Reports" },
 ];
 
 export function InventoryNav() {

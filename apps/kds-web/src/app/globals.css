@@ -1,4 +1,57 @@
 @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
-body { @apply bg-gray-950 text-white; }
+
+@layer base {
+  body {
+    @apply bg-surface text-slate-900 antialiased;
+  }
+}
+
+@layer components {
+  .role-floor-card {
+    @apply relative flex flex-col rounded-2xl p-4 min-h-[108px] transition-all duration-200 text-left bg-white shadow-card ring-1 ring-black/[0.04];
+  }
+
+  .role-chip {
+    @apply inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold;
+  }
+
+  .role-chip-pending {
+    @apply bg-orange-100 text-orange-800;
+  }
+
+  .role-chip-preparing {
+    @apply bg-amber-100 text-amber-900;
+  }
+
+  .role-action-kot {
+    @apply rounded-xl font-semibold text-amber-950 bg-amber-400 hover:bg-amber-300 transition-all active:scale-[0.98];
+  }
+
+  .role-action-ready {
+    @apply rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-all active:scale-[0.98];
+  }
+
+  .kds-item-ticket {
+    @apply relative bg-white rounded-2xl shadow-card ring-1 ring-black/[0.04] overflow-hidden transition-all duration-200 hover:shadow-panel hover:-translate-y-0.5;
+  }
+
+  .kds-item-accent {
+    @apply absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl;
+  }
+
+  .kds-item-bump {
+    @apply opacity-0 scale-95 ring-2 ring-emerald-400;
+    transition: opacity 0.25s, transform 0.25s;
+  }
+
+  .kds-overdue-pulse {
+    animation: kds-overdue-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes kds-overdue-pulse {
+    0%, 100% { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 0 0 0 rgb(239 68 68 / 0.2); }
+    50% { box-shadow: 0 4px 12px -2px rgb(239 68 68 / 0.15), 0 0 0 6px rgb(239 68 68 / 0); }
+  }
+}

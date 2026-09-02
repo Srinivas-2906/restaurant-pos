@@ -14,7 +14,7 @@ export function ConsoleShell({ children, hubOffline }: ConsoleShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-surface flex">
+    <div className="min-h-dvh bg-surface flex pb-[env(safe-area-inset-bottom)]">
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       {mobileOpen && (
         <button

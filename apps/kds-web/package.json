@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3002",
-    "build": "tsc --noEmit",
+    "build": "next build",
     "start": "next start -p 3002",
     "lint": "next lint"
   },
   "dependencies": {
+    "@kaana/role-shells": "*",
+    "@kaana/ui": "*",
     "next": "^15.5.22",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

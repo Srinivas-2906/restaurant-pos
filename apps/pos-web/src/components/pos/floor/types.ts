@@ -7,9 +7,21 @@ export interface TableActiveOrder {
   itemQty: number;
   pendingKot: number;
   inKitchen: number;
+  readyCount?: number;
+  servedCount?: number;
+  allReady?: boolean;
+  allServed?: boolean;
   kotCount: number;
   createdAt: string;
   elapsedMins: number;
+}
+
+export interface TableReservationSummary {
+  id: string;
+  guestName: string;
+  guestCount: number;
+  date: string;
+  status: string;
 }
 
 export interface Table {
@@ -18,6 +30,8 @@ export interface Table {
   status: string;
   capacity: number;
   activeOrder?: TableActiveOrder | null;
+  activeReservation?: TableReservationSummary | null;
+  upcomingReservation?: TableReservationSummary | null;
 }
 
 export type TableWithOrder = Table & { activeOrder: TableActiveOrder | null };
@@ -51,14 +65,30 @@ export interface OrderItem {
   menuItemId: string;
 }
 
+export type OrderSource =
+  | "dine_in"
+  | "swiggy"
+  | "zomato"
+  | "website"
+  | "phone"
+  | "walk_in";
+
+export type OrderType = "dine_in" | "takeaway" | "delivery";
+
 export interface Order {
   id: string;
   orderNumber: string;
   status: string;
+  type?: OrderType;
+  source?: OrderSource;
+  externalOrderId?: string | null;
+  notes?: string | null;
+  aggregatorData?: Record<string, unknown> | null;
   subtotal: number | string;
   taxAmount: number | string;
   totalAmount: number | string;
   guestCount?: number;
+  createdAt?: string;
   items: OrderItem[];
   table?: Table | null;
   kots?: Array<{ id: string; kotNumber: string; status: string }>;

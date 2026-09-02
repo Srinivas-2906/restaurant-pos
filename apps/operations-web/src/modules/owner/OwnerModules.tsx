@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, getOutletId } from "@/lib/api";
-import { MarginAlertCard, formatCurrency } from "@kaana/ui";
+import { api, getOutletId, setSelectedOutletId, loadOrganizationOutlets, type OutletSummary } from "@/lib/api";
+import { MarginAlertCard } from "@kaana/ui";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { PageContent } from "@/components/shell/PageContent";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { Panel } from "@/components/ui/Panel";
 import { EmptyState } from "@/components/ui/EmptyState";
+
 
 export function ProfitabilityModule() {
   const outletId = getOutletId();
@@ -91,26 +92,219 @@ export function AlertsModule() {
 }
 
 export function OutletsModule() {
-  const [outlets, setOutlets] = useState<Array<Record<string, unknown>>>([]);
+  const [outlets, setOutlets] = useState<OutletSummary[]>([]);
+  const [brandId, setBrandId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    code: "",
+    type: "dine_in",
+    address: "",
+    city: "",
+  });
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const list = await loadOrganizationOutlets();
+      setOutlets(list);
+      if (list[0]?.brandId) setBrandId(list[0].brandId);
+      setSelectedId(getOutletId());
+    } catch {
+      setOutlets([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user") ?? "{}");
-    const brandId = user?.organization?.brands?.[0]?.id;
-    if (brandId) api<Array<Record<string, unknown>>>(`/outlets?brandId=${brandId}`).then(setOutlets).catch(() => {});
+    refresh();
   }, []);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!brandId) {
+      setError("No brand found for this organization.");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await api("/outlets", {
+        method: "POST",
+        body: JSON.stringify({ ...form, brandId }),
+      });
+      setShowForm(false);
+      setForm({ name: "", code: "", type: "dine_in", address: "", city: "" });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create outlet");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeactivate(id: string, name: string) {
+    if (id === selectedId) {
+      alert("Switch to another outlet before deactivating this one.");
+      return;
+    }
+    if (!confirm(`Deactivate "${name}"? This outlet will be hidden from lists.`)) return;
+    try {
+      await api(`/outlets/${id}`, { method: "DELETE" });
+      await refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to deactivate outlet");
+    }
+  }
+
+  function handleUseOutlet(id: string) {
+    setSelectedOutletId(id);
+    setSelectedId(id);
+  }
 
   return (
     <PageContent>
-      <PageHeader title="Outlets" description="Manage restaurant locations." />
+      <PageHeader
+        title="Outlets"
+        description="Manage restaurant locations."
+        action={
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-2 bg-kaana hover:bg-kaana-dark text-white px-4 py-2 rounded-xl text-sm font-medium"
+          >
+            Add outlet
+          </button>
+        }
+      />
+
+      {showForm && (
+        <Panel className="mb-6">
+          <h3 className="font-semibold text-lg mb-4">New outlet</h3>
+          <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <input
+                required
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                placeholder="Kaana Test Outlet"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
+              <input
+                required
+                value={form.code}
+                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                placeholder="BLR-TEST"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+              >
+                <option value="dine_in">Dine in</option>
+                <option value="cloud_kitchen">Cloud kitchen</option>
+                <option value="central_kitchen">Central kitchen</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input
+                value={form.city}
+                onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                placeholder="Bangalore"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+              <input
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                placeholder="Street address"
+              />
+            </div>
+            {error && <p className="md:col-span-2 text-red-600 text-sm">{error}</p>}
+            <div className="md:col-span-2 flex gap-2">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="bg-kaana text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                {submitting ? "Creating…" : "Create outlet"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="px-4 py-2 rounded-lg text-sm border border-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Panel>
+      )}
+
       <div className="space-y-4">
-        {outlets.length === 0 ? (
-          <Panel><EmptyState title="No outlets" /></Panel>
+        {loading ? (
+          <Panel><p className="text-gray-500 text-sm">Loading outlets…</p></Panel>
+        ) : outlets.length === 0 ? (
+          <Panel><EmptyState title="No outlets" description="Add your first outlet to get started." /></Panel>
         ) : (
           outlets.map((o) => (
-            <Panel key={o.id as string}>
-              <h3 className="font-semibold text-lg">{o.name as string}</h3>
-              <p className="text-gray-500 text-sm mt-1">{o.code as string} · {String(o.type).replace("_", " ")}</p>
-              <p className="text-sm text-gray-400 mt-1">{o.address as string}, {o.city as string}</p>
+            <Panel key={o.id}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg">{o.name}</h3>
+                    {selectedId === o.id && (
+                      <span className="text-xs bg-kaana/10 text-kaana px-2 py-0.5 rounded-full font-medium">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-500 text-sm mt-1">
+                    {o.code} · {o.type.replace("_", " ")}
+                  </p>
+                  {(o.address || o.city) && (
+                    <p className="text-sm text-gray-400 mt-1">
+                      {[o.address, o.city].filter(Boolean).join(", ")}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedId !== o.id && (
+                    <button
+                      type="button"
+                      onClick={() => handleUseOutlet(o.id)}
+                      className="text-sm text-kaana font-medium hover:underline px-3 py-1.5"
+                    >
+                      Use this outlet
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDeactivate(o.id, o.name)}
+                    disabled={selectedId === o.id}
+                    className="text-sm text-red-600 font-medium hover:underline px-3 py-1.5 disabled:opacity-40 disabled:no-underline"
+                  >
+                    Deactivate
+                  </button>
+                </div>
+              </div>
             </Panel>
           ))
         )}
@@ -147,50 +341,4 @@ export function DevicesModule() {
   );
 }
 
-export function ReportsModule() {
-  const outletId = getOutletId();
-  const [comparison, setComparison] = useState<Array<{ outletName?: string; revenue?: number; orders?: number }>>([]);
-  const [inventory, setInventory] = useState<Array<{ isLowStock?: boolean; value?: number }>>([]);
-  const [wastage, setWastage] = useState<Array<{ quantity: number | string }>>([]);
-  const from = new Date(Date.now() - 30 * 86400000).toISOString();
-  const to = new Date().toISOString();
-
-  useEffect(() => {
-    api<Array<{ outletName?: string; revenue?: number; orders?: number }>>(`/reports/outlets/comparison?from=${from}&to=${to}`).then(setComparison).catch(() => {});
-    if (outletId) {
-      api<typeof inventory>(`/reports/inventory?outletId=${outletId}`).then(setInventory).catch(() => setInventory([]));
-      api<typeof wastage>(`/reports/wastage?outletId=${outletId}&from=${from}&to=${to}`).then(setWastage).catch(() => setWastage([]));
-    }
-  }, [outletId, from, to]);
-
-  return (
-    <PageContent>
-      <PageHeader title="Reports" description="Performance, inventory, and wastage analytics." />
-      <div className="grid lg:grid-cols-2 gap-6 mb-6">
-        <Panel title="Inventory snapshot">
-          <p className="text-sm text-gray-600">Total ingredients: <strong>{inventory.length || "—"}</strong></p>
-          <p className="text-sm text-gray-600 mt-2">Low stock items: <strong>{inventory.filter((i) => i.isLowStock).length}</strong></p>
-          <Link href="/inventory" className="inline-block mt-3 text-sm text-kaana font-medium hover:underline">Open inventory</Link>
-        </Panel>
-        <Panel title="Wastage (30 days)">
-          <p className="text-sm text-gray-600">Total wastage events: <strong>{wastage.length}</strong></p>
-          <Link href="/purchases/wastage" className="inline-block mt-3 text-sm text-kaana font-medium hover:underline">Log wastage</Link>
-        </Panel>
-      </div>
-      <Panel title="Outlet comparison (30 days)">
-        {comparison.length === 0 ? (
-          <EmptyState title="No comparison data" />
-        ) : (
-          <ul className="divide-y divide-gray-100">
-            {comparison.map((r, i) => (
-              <li key={i} className="py-3 text-sm flex justify-between">
-                <span className="font-medium">{r.outletName ?? `Outlet ${i + 1}`}</span>
-                <span className="text-gray-600">{formatCurrency(Number(r.revenue ?? 0))} · {r.orders ?? 0} orders</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </PageContent>
-  );
-}
+export { ReportsModule } from "@/modules/reports/ReportsModule";

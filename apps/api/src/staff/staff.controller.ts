@@ -1,5 +1,7 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Request } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
+import { SetStaffPinSchema } from "@kaana/shared-types";
 import { StaffService } from "./staff.service";
 import { JwtAuthGuard, Roles } from "../auth/guards";
 
@@ -10,16 +12,55 @@ import { JwtAuthGuard, Roles } from "../auth/guards";
 export class StaffController {
   constructor(private staffService: StaffService) {}
 
+  @Post("employees")
+  @Roles("manager", "owner")
+  createEmployee(@Request() req: { user: { organizationId: string; id: string } }, @Body() body: Record<string, unknown>) {
+    return this.staffService.createEmployee(req.user.organizationId, body, req.user.id);
+  }
+
   @Post("profiles")
   @Roles("manager", "owner")
-  createProfile(@Body() body: Record<string, unknown>) {
-    return this.staffService.createProfile(body as never);
+  createProfile(@Request() req: { user: { organizationId: string } }, @Body() body: Record<string, unknown>) {
+    return this.staffService.createProfile({ ...body, organizationId: req.user.organizationId } as never);
+  }
+
+  @Get("profiles/:id")
+  @Roles("manager", "owner", "accountant")
+  getProfile(@Param("id") id: string) {
+    return this.staffService.getProfile(id);
+  }
+
+  @Get("profiles/:id/timeline")
+  @Roles("manager", "owner")
+  timeline(@Param("id") id: string) {
+    return this.staffService.listTimeline(id);
   }
 
   @Patch("profiles/:id")
   @Roles("manager", "owner")
   updateProfile(@Param("id") id: string, @Body() body: Record<string, unknown>) {
     return this.staffService.updateProfile(id, body);
+  }
+
+  @Post("profiles/:id/pin")
+  @Roles("manager", "owner")
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  setPin(
+    @Param("id") id: string,
+    @Request() req: { user: { organizationId: string; userId: string } },
+    @Body() body: unknown,
+  ) {
+    const parsed = SetStaffPinSchema.parse(body);
+    return this.staffService.setPin(id, req.user.organizationId, parsed.pin, req.user.userId);
+  }
+
+  @Delete("profiles/:id/pin")
+  @Roles("manager", "owner")
+  revokePin(
+    @Param("id") id: string,
+    @Request() req: { user: { organizationId: string } },
+  ) {
+    return this.staffService.revokePin(id, req.user.organizationId);
   }
 
   @Get("outlets/:outletId")
@@ -42,8 +83,14 @@ export class StaffController {
 
   @Post("clock-in")
   @Roles("manager", "biller", "captain", "chef")
-  clockIn(@Body() body: { outletId: string; userId: string; source?: string }) {
-    return this.staffService.clockIn(body.outletId, body.userId, body.source);
+  clockIn(@Body() body: { outletId: string; userId?: string; staffProfileId?: string; source?: string }) {
+    if (body.staffProfileId) {
+      return this.staffService.clockIn(body.outletId, body.staffProfileId, body.source ?? "pos");
+    }
+    if (body.userId) {
+      return this.staffService.clockIn(body.outletId, body.userId, body.source ?? "pos", true);
+    }
+    throw new BadRequestException("staffProfileId or userId required");
   }
 
   @Post("clock-out/:recordId")
@@ -105,7 +152,7 @@ export class StaffController {
   @Roles("manager", "owner")
   createLeave(
     @Param("outletId") outletId: string,
-    @Body() body: { userId: string; type?: string; startDate: string; endDate: string; reason?: string },
+    @Body() body: { staffProfileId?: string; userId?: string; type?: string; startDate: string; endDate: string; reason?: string },
   ) {
     return this.staffService.createLeave({ outletId, ...body });
   }

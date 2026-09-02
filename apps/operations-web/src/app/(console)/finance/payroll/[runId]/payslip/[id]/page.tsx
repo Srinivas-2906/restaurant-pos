@@ -1,10 +1,10 @@
-import { PayslipModule } from "@/modules/finance/PayrollModules";
+import { redirect } from "next/navigation";
 
-export default async function PayslipPage({
+export default async function LegacyPayslipRedirect({
   params,
 }: {
   params: Promise<{ runId: string; id: string }>;
 }) {
   const { runId, id } = await params;
-  return <PayslipModule runId={runId} payslipId={id} />;
+  redirect(`/payroll/runs/${runId}/payslip/${id}`);
 }

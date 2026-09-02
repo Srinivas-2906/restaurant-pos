@@ -15,6 +15,7 @@
     "db:migrate": "turbo run db:migrate",
     "db:push": "turbo run db:push",
     "db:seed": "turbo run db:seed",
+    "db:reservations-migrate": "npm run db:reservations-migrate -w @kaana/database",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""

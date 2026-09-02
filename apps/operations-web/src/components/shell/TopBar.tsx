@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Calendar, Menu, Plus, Search } from "lucide-react";
-import { getUser, getOutletId } from "@/lib/api";
-import { api } from "@/lib/api";
+import { POS_WEB_URL } from "@kaana/role-shells";
+import { getUser, getOutletId, api } from "@/lib/api";
 import { OutletSelector } from "@/components/OutletSelector";
 
 function getGreeting(): string {
@@ -20,19 +20,30 @@ interface TopBarProps {
 }
 
 export function TopBar({ onMenuClick, hubOffline }: TopBarProps) {
-  const user = getUser();
-  const outletId = getOutletId();
+  const [mounted, setMounted] = useState(false);
+  const [firstName, setFirstName] = useState<string | null>(null);
+  const [today, setToday] = useState("");
+  const [greeting, setGreeting] = useState("Hello");
+  const [outletId, setOutletId] = useState<string | null>(null);
   const [approvals, setApprovals] = useState(0);
-  const today = new Date().toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
 
   useEffect(() => {
-    if (!outletId) return;
+    const user = getUser();
+    setFirstName(user?.firstName ?? null);
+    setOutletId(getOutletId());
+    setGreeting(getGreeting());
+    setToday(new Date().toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }));
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !outletId) return;
     api<{ total: number }>(`/approvals/pending?outletId=${outletId}`)
       .then((p) => setApprovals(p.total))
       .catch(() => {});
-  }, [outletId]);
+  }, [mounted, outletId]);
 
-  const posUrl = outletId ? `http://localhost:3001?outletId=${outletId}` : "http://localhost:3001";
+  const posUrl = outletId ? `${POS_WEB_URL}?outletId=${outletId}` : POS_WEB_URL;
 
   return (
     <header className="sticky top-0 z-30 bg-surface-card border-b border-gray-200/80">
@@ -42,13 +53,13 @@ export function TopBar({ onMenuClick, hubOffline }: TopBarProps) {
         </div>
       )}
       <div className="px-4 lg:px-8 py-4 flex flex-wrap items-center gap-4">
-        <button type="button" onClick={onMenuClick} className="lg:hidden p-2 rounded-lg hover:bg-gray-100">
+        <button type="button" onClick={onMenuClick} className="lg:hidden p-2 min-h-11 min-w-11 rounded-lg hover:bg-gray-100" aria-label="Open menu">
           <Menu className="w-5 h-5" />
         </button>
 
         <div className="flex-1 min-w-[200px]">
-          <p className="text-lg font-semibold text-gray-900">
-            {getGreeting()}, {user?.firstName ?? "there"}!
+          <p className="text-lg font-semibold text-gray-900" suppressHydrationWarning>
+            {greeting}, {mounted ? firstName ?? "there" : "there"}!
           </p>
           <p className="text-sm text-gray-500 hidden sm:block">Here&apos;s what&apos;s happening in your restaurant today.</p>
         </div>
@@ -62,11 +73,11 @@ export function TopBar({ onMenuClick, hubOffline }: TopBarProps) {
           />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           <OutletSelector />
           <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm text-gray-600">
             <Calendar className="w-4 h-4" />
-            <span>{today}</span>
+            <span suppressHydrationWarning>{mounted ? today : "…"}</span>
           </div>
           <Link href="/overview#approvals" className="relative p-2 rounded-xl hover:bg-gray-100">
             <Bell className="w-5 h-5 text-gray-600" />

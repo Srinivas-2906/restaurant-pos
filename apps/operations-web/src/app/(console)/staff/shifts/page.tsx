@@ -1,5 +1,5 @@
-import { ShiftsModule } from "@/modules/manager/ShiftsModule";
+import { redirect } from "next/navigation";
 
-export default function ShiftsPage() {
-  return <ShiftsModule />;
+export default function LegacyShiftsRedirect() {
+  redirect("/staff/roster");
 }

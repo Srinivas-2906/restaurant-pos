@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { SyncBadge } from "@kaana/ui";
+import { SyncBadge, KaanaBrand } from "@kaana/ui";
 import { getHubHealth, hub, getTerminalId } from "../lib/hub";
 
 export default function LoginScreen() {
@@ -26,12 +26,12 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-      <div className="w-96 p-8 bg-gray-800 rounded-2xl">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-orange-500">Kaana POS</h1>
-            <p className="text-sm text-gray-400">Terminal {getTerminalId()}</p>
+    <div className="min-h-dvh flex items-center justify-center bg-gray-900 text-white p-4 overflow-x-clip">
+      <div className="w-full max-w-sm p-6 sm:p-8 bg-gray-800 rounded-2xl overflow-hidden">
+        <div className="flex justify-between items-start gap-3 mb-6 min-w-0">
+          <div className="min-w-0">
+            <KaanaBrand size="sm" appLabel="POS · Counter" />
+            <p className="text-sm text-gray-400 mt-2 truncate">Terminal {getTerminalId()}</p>
           </div>
           <SyncBadge status={sync} />
         </div>

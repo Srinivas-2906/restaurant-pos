@@ -10,6 +10,7 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reservations-migrate": "prisma db execute --file prisma/migrations/reservations_module.sql --schema prisma/schema.prisma",
     "dev": "tsc --watch"
   },
   "dependencies": {

@@ -1,5 +1,5 @@
-import { WastageModule } from "@/modules/inventory/PurchasesModule";
+import { redirect } from "next/navigation";
 
-export default function WastagePage() {
-  return <WastageModule />;
+export default function PurchasesWastageRedirect() {
+  redirect("/inventory/wastage");
 }

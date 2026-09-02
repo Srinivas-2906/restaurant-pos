@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { KaanaBrand } from "@kaana/ui";
 import Link from "next/link";
 import { api, getUser, logout } from "@/lib/api";
 
@@ -29,9 +30,11 @@ export default function ReportsPage() {
 
   return (
     <div className="min-h-screen">
-      <nav className="bg-white border-b px-6 py-4 flex justify-between">
-        <div className="flex gap-6">
-          <Link href="/dashboard" className="font-bold text-orange-600">Kaana Foods HQ</Link>
+      <nav className="bg-white border-b px-4 sm:px-6 py-3 flex flex-wrap justify-between gap-3 overflow-x-clip">
+        <div className="flex gap-4 sm:gap-6 items-center min-w-0 flex-wrap">
+          <Link href="/dashboard" className="shrink-0">
+            <KaanaBrand size="xs" framed appLabel="HQ" labelClassName="text-gray-500" />
+          </Link>
           <Link href="/reports">Reports</Link>
         </div>
         <button onClick={() => { logout(); router.push("/"); }} className="text-red-600 text-sm">Logout</button>

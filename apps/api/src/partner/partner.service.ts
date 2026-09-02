@@ -67,7 +67,13 @@ export class PartnerService {
     const adapter = createAggregatorAdapter(data.source);
     await adapter.acknowledgeOrder(data.externalOrderId, "accepted");
 
-    this.events.emitOrderUpdate(outlet.id, { id: order.id, source: data.source, externalOrderId: data.externalOrderId });
+    this.events.emitOrderUpdate(outlet.id, {
+      type: "aggregator_order",
+      orderId: order.id,
+      id: order.id,
+      source: data.source,
+      externalOrderId: data.externalOrderId,
+    });
     return this.ordersService.findOne(order.id);
   }
 

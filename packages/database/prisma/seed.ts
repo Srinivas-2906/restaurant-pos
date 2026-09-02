@@ -74,6 +74,19 @@ async function main() {
     },
   });
 
+  const chef = await prisma.user.upsert({
+    where: { organizationId_email: { organizationId: org.id, email: "chef@kaanafoods.in" } },
+    update: {},
+    create: {
+      organizationId: org.id,
+      email: "chef@kaanafoods.in",
+      phone: "+919876543216",
+      passwordHash,
+      firstName: "Ravi",
+      lastName: "Nair",
+    },
+  });
+
   const outlets = await Promise.all([
     prisma.outlet.upsert({
       where: { brandId_code: { brandId: brand.id, code: "BLR-001" } },
@@ -158,6 +171,17 @@ async function main() {
         role: UserRole.captain,
       },
     }),
+    prisma.roleAssignment.upsert({
+      where: { id: "seed-chef-role" },
+      update: {},
+      create: {
+        id: "seed-chef-role",
+        userId: chef.id,
+        organizationId: org.id,
+        outletId: dineInOutlet.id,
+        role: UserRole.chef,
+      },
+    }),
   ]);
 
   const terminal = await prisma.terminal.findFirst({
@@ -168,6 +192,21 @@ async function main() {
       name: "Main Counter",
       code: "T1",
       isMaster: true,
+      deviceType: "pos",
+    },
+  });
+
+  const demoTerminalSecret = "kaana-demo-terminal-secret";
+  const demoPinHash = await bcrypt.hash("4821", 10);
+  const demoDeviceSecretHash = await bcrypt.hash(demoTerminalSecret, 10);
+  await prisma.terminal.update({
+    where: { id: terminal.id },
+    data: {
+      deviceType: "pos",
+      isRegistered: true,
+      deviceSecretHash: demoDeviceSecretHash,
+      registeredAt: new Date(),
+      registeredByUserId: manager.id,
     },
   });
 
@@ -583,9 +622,10 @@ async function main() {
   ]);
 
   for (const profile of [
-    { userId: biller.id, employeeCode: "EMP-001", wageType: "hourly" as const, hourlyRate: 150 },
-    { userId: captain.id, employeeCode: "EMP-002", wageType: "hourly" as const, hourlyRate: 140 },
-    { userId: manager.id, employeeCode: "EMP-003", wageType: "monthly" as const, monthlySalary: 45000 },
+    { userId: biller.id, organizationId: org.id, employeeCode: "EMP-001", wageType: "hourly" as const, hourlyRate: 150, legalName: "Biller User", firstName: "Biller", displayName: "Biller User", hasLoginAccess: true },
+    { userId: captain.id, organizationId: org.id, employeeCode: "EMP-002", wageType: "hourly" as const, hourlyRate: 140, legalName: "Captain User", firstName: "Captain", displayName: "Captain User", hasLoginAccess: true },
+    { userId: manager.id, organizationId: org.id, employeeCode: "EMP-003", wageType: "monthly" as const, monthlySalary: 45000, legalName: "Raj Manager", firstName: "Raj", lastName: "Manager", displayName: "Raj Manager", hasLoginAccess: true },
+    { userId: chef.id, organizationId: org.id, employeeCode: "EMP-004", wageType: "monthly" as const, monthlySalary: 38000, legalName: "Chef User", firstName: "Chef", displayName: "Chef User", hasLoginAccess: true },
   ]) {
     await prisma.staffProfile.upsert({
       where: { userId: profile.userId },
@@ -680,14 +720,17 @@ async function main() {
   const shiftEnd = new Date();
   shiftEnd.setHours(22, 0, 0, 0);
 
-  const existingShift = await prisma.shiftSchedule.findFirst({
-    where: { outletId: dineInOutlet.id, userId: biller.id, startAt: shiftStart },
-  });
-  if (!existingShift) {
+  const billerProfile = await prisma.staffProfile.findUnique({ where: { userId: biller.id } });
+  const captainProfile = await prisma.staffProfile.findUnique({ where: { userId: captain.id } });
+
+  const existingShift = billerProfile && (await prisma.shiftSchedule.findFirst({
+    where: { outletId: dineInOutlet.id, staffProfileId: billerProfile.id, startAt: shiftStart },
+  }));
+  if (!existingShift && billerProfile && captainProfile) {
     await prisma.shiftSchedule.create({
       data: {
         outletId: dineInOutlet.id,
-        userId: biller.id,
+        staffProfileId: billerProfile.id,
         startAt: shiftStart,
         endAt: shiftEnd,
         station: "Counter",
@@ -696,7 +739,7 @@ async function main() {
     await prisma.shiftSchedule.create({
       data: {
         outletId: dineInOutlet.id,
-        userId: captain.id,
+        staffProfileId: captainProfile.id,
         startAt: shiftStart,
         endAt: shiftEnd,
         station: "Floor",
@@ -704,17 +747,110 @@ async function main() {
     });
   }
 
-  const existingAttendance = await prisma.attendanceRecord.findFirst({
-    where: { outletId: dineInOutlet.id, userId: biller.id, source: "pos" },
-  });
-  if (!existingAttendance) {
+  const existingAttendance = billerProfile && (await prisma.attendanceRecord.findFirst({
+    where: { outletId: dineInOutlet.id, staffProfileId: billerProfile.id, source: "pos" },
+  }));
+  if (!existingAttendance && billerProfile) {
     const clockIn = new Date();
     clockIn.setHours(9, 55, 0, 0);
     const clockOut = new Date();
     clockOut.setHours(17, 0, 0, 0);
     await prisma.attendanceRecord.create({
-      data: { outletId: dineInOutlet.id, userId: biller.id, clockIn, clockOut, source: "pos" },
+      data: { outletId: dineInOutlet.id, staffProfileId: billerProfile.id, clockIn, clockOut, source: "pos" },
     });
+  }
+
+  // HR Phase 1–5 seed: jurisdictions, shift templates, salary components, leave policies
+  const kaJurisdiction = await prisma.complianceJurisdiction.upsert({
+    where: { organizationId_stateCode_effectiveFrom: { organizationId: org.id, stateCode: "KA", effectiveFrom: new Date("2025-11-21") } },
+    update: {},
+    create: {
+      organizationId: org.id,
+      stateCode: "KA",
+      stateName: "Karnataka",
+      rulePack: { minimumMonthlyWage: 17750, pfWageCeiling: 15000, esiWageCeiling: 21000 },
+      effectiveFrom: new Date("2025-11-21"),
+    },
+  });
+
+  const existingReg = await prisma.complianceRegistration.findFirst({
+    where: { jurisdictionId: kaJurisdiction.id, outletId: dineInOutlet.id, type: "shops_establishments" },
+  });
+  if (!existingReg) {
+    await prisma.complianceRegistration.create({
+      data: {
+        jurisdictionId: kaJurisdiction.id,
+        outletId: dineInOutlet.id,
+        type: "shops_establishments",
+        registrationNo: "KA-SNE-2024-001",
+        issuedAt: new Date("2024-01-01"),
+      },
+    });
+  }
+
+  for (const tpl of [
+    { code: "opening", name: "Opening shift", startTime: "08:00", endTime: "12:00" },
+    { code: "general", name: "General shift", startTime: "10:00", endTime: "22:00" },
+    { code: "evening", name: "Evening shift", startTime: "14:00", endTime: "23:00" },
+    { code: "closing", name: "Closing shift", startTime: "18:00", endTime: "01:00", nightAllowance: true },
+    { code: "split", name: "Split shift", startTime: "11:00", endTime: "23:30", isSplitShift: true, splitBreakStart: "15:00", splitBreakEnd: "19:00" },
+  ] as const) {
+    await prisma.shiftTemplate.upsert({
+      where: { organizationId_code: { organizationId: org.id, code: tpl.code } },
+      update: {},
+      create: {
+        organizationId: org.id,
+        outletId: dineInOutlet.id,
+        name: tpl.name,
+        code: tpl.code,
+        startTime: tpl.startTime,
+        endTime: tpl.endTime,
+        breakMinutes: 30,
+        mealEligible: true,
+        nightAllowance: "nightAllowance" in tpl ? tpl.nightAllowance : false,
+        isSplitShift: "isSplitShift" in tpl ? tpl.isSplitShift : false,
+        splitBreakStart: "splitBreakStart" in tpl ? tpl.splitBreakStart : undefined,
+        splitBreakEnd: "splitBreakEnd" in tpl ? tpl.splitBreakEnd : undefined,
+      },
+    });
+  }
+
+  for (const comp of [
+    { code: "basic", name: "Basic", kind: "earning" as const, includeInPf: true, includeInGratuity: true },
+    { code: "da", name: "Dearness Allowance", kind: "earning" as const, includeInPf: true },
+    { code: "hra", name: "HRA", kind: "earning" as const },
+    { code: "special", name: "Special Allowance", kind: "earning" as const },
+    { code: "shift_allowance", name: "Shift Allowance", kind: "earning" as const, includeInOvertime: true },
+    { code: "pf", name: "EPF", kind: "deduction" as const },
+    { code: "esi", name: "ESIC", kind: "deduction" as const },
+    { code: "employer_pf", name: "Employer PF", kind: "employer_cost" as const },
+  ]) {
+    await prisma.salaryComponent.upsert({
+      where: { organizationId_code_effectiveFrom: { organizationId: org.id, code: comp.code, effectiveFrom: new Date("2025-11-21") } },
+      update: {},
+      create: {
+        organizationId: org.id,
+        effectiveFrom: new Date("2025-11-21"),
+        calculationType: "fixed",
+        code: comp.code,
+        name: comp.name,
+        kind: comp.kind,
+        includeInPf: comp.includeInPf ?? false,
+        includeInGratuity: comp.includeInGratuity ?? false,
+        includeInOvertime: comp.includeInOvertime ?? false,
+      },
+    });
+  }
+
+  for (const lp of [
+    { leaveType: "earned" as const, name: "Earned Leave", carryForwardMax: 30, maxBalance: 45 },
+    { leaveType: "casual" as const, name: "Casual Leave", maxBalance: 12 },
+    { leaveType: "sick" as const, name: "Sick Leave", documentRequired: true },
+  ]) {
+    const existing = await prisma.leavePolicy.findFirst({ where: { organizationId: org.id, leaveType: lp.leaveType, name: lp.name } });
+    if (!existing) {
+      await prisma.leavePolicy.create({ data: { organizationId: org.id, outletId: dineInOutlet.id, ...lp } });
+    }
   }
 
   const demoPO = seedSupplier && seedPaneer
@@ -737,17 +873,92 @@ async function main() {
   await prisma.category.updateMany({ data: { nameHi: null } });
   await prisma.menuItem.updateMany({ data: { nameHi: null } });
 
+  const floorProfiles = await prisma.staffProfile.findMany({
+    where: {
+      organizationId: org.id,
+      userId: { in: [biller.id, captain.id, chef.id, manager.id] },
+    },
+  });
+  for (const sp of floorProfiles) {
+    await prisma.staffProfile.update({
+      where: { id: sp.id },
+      data: {
+        pinHash: demoPinHash,
+        pinSetAt: new Date(),
+        pinUpdatedByUserId: manager.id,
+        pinFailedAttempts: 0,
+        pinLockedUntil: null,
+      },
+    });
+  }
+
+  const roleByUserId: Record<string, UserRole> = {
+    [biller.id]: UserRole.biller,
+    [captain.id]: UserRole.captain,
+    [chef.id]: UserRole.chef,
+    [manager.id]: UserRole.manager,
+  };
+  for (const sp of floorProfiles) {
+    const role = sp.userId ? roleByUserId[sp.userId] : UserRole.biller;
+    if (!role) continue;
+    await prisma.staffRoleAssignment.upsert({
+      where: {
+        staffProfileId_outletId_role: {
+          staffProfileId: sp.id,
+          outletId: dineInOutlet.id,
+          role,
+        },
+      },
+      update: { permissions: [] },
+      create: {
+        staffProfileId: sp.id,
+        organizationId: org.id,
+        outletId: dineInOutlet.id,
+        role,
+        permissions: [],
+      },
+    });
+  }
+
   console.log("Seed complete!");
   console.log("Login credentials (password123 for all) — sign in once at http://localhost:3010");
   console.log("  Owner:       owner@kaanafoods.in       → Owner console (payroll, staff, reports)");
   console.log("  Manager:     manager@kaanafoods.in     → Owner console");
   console.log("  Storekeeper: storekeeper@kaanafoods.in → POS /inventory");
-  console.log("  Accountant:  accountant@kaanafoods.in  → Owner console /finance/payroll");
+  console.log("  Accountant:  accountant@kaanafoods.in  → Owner console /payroll");
   console.log("  Biller:      biller@kaanafoods.in       → POS /floor");
+  console.log("  Chef (KDS):  chef@kaanafoods.in        → http://localhost:3002");
   console.log("  Platform:    (super_admin only)        → http://localhost:3000");
   console.log("Outlet:", dineInOutlet.name, dineInOutlet.id);
   console.log("Demo PO:", demoPO?.poNumber ?? "n/a", demoPO?.id ?? "");
   console.log("Terminal:", terminal.code, terminal.id);
+  console.log("Demo POS terminal credential: Terminal", `${terminal.id}:${demoTerminalSecret}`);
+  console.log("Demo staff PIN (biller/captain/chef/manager): 4821");
+
+  await prisma.outlet.update({
+    where: { id: dineInOutlet.id },
+    data: {
+      settings: {
+        billingMode: "cashier_settles",
+        inventoryPolicy: "warn",
+      },
+    },
+  });
+
+  const ordersToBackfill = await prisma.order.findMany({ where: { outletId: dineInOutlet.id } });
+  for (const order of ordersToBackfill) {
+    let fulfilment: "restaurant" | "aggregator" | "customer_pickup" | null = null;
+    if (order.type === "delivery" && ["swiggy", "zomato", "ondc"].includes(order.source)) {
+      fulfilment = "aggregator";
+    } else if (order.type === "takeaway" && ["walk_in", "pos", "captain"].includes(order.source)) {
+      fulfilment = "customer_pickup";
+    } else if (order.type === "delivery") {
+      fulfilment = "restaurant";
+    }
+    if (fulfilment) {
+      await prisma.order.update({ where: { id: order.id }, data: { fulfilment } });
+    }
+  }
 }
 
 main()

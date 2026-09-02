@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/kds/**/*",
+    "src/orders/**/*",
+    "src/outlets/**/*",
+    "src/reservations/**/*",
+    "src/waitlist/**/*",
+    "src/crm/**/*",
+    "src/audit/**/*",
+    "src/events/**/*",
+    "src/prisma/**/*",
+    "src/auth/**/*",
+    "src/app.module.ts",
+    "src/main.ts",
+    "src/health.controller.ts"
+  ]
+}

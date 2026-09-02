@@ -1,0 +1,49 @@
+name: Deploy GCP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - "apps/kds-web/**"
+      - "apps/pos-web/**"
+      - "apps/captain-web/**"
+      - "apps/operations-web/**"
+      - "packages/**"
+      - "Dockerfile.api"
+      - "Dockerfile.web"
+      - "deploy/**"
+      - "scripts/gcp-deploy.sh"
+      - ".github/workflows/deploy-gcp.yml"
+
+concurrency:
+  group: deploy-gcp
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+          SKIP_SEED: "1"
+        run: bash scripts/gcp-deploy.sh

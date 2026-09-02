@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { OrganizationsService } from "./organizations.service";
 import { JwtAuthGuard } from "../auth/guards";
@@ -16,8 +16,11 @@ export class OrganizationsController {
   }
 
   @Get("dashboard")
-  getDashboard(@Request() req: { user: { organizationId: string } }) {
-    return this.orgService.getDashboardStats(req.user.organizationId);
+  getDashboard(
+    @Request() req: { user: { organizationId: string } },
+    @Query("outletId") outletId?: string,
+  ) {
+    return this.orgService.getDashboardStats(req.user.organizationId, outletId);
   }
 
   @Get(":id")

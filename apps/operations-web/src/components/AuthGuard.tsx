@@ -2,16 +2,11 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  getAppEntryForRole,
-  readAuthHandoffFromStorage,
-  redirectUrlForRoleWithAuth,
-  resolveAllRoles,
-  resolvePrimaryRole,
-  usesPosApp,
-} from "@kaana/role-shells";
-import { getUser } from "@/lib/api";
+import { getAppEntryForRole, HQ_ADMIN_URL, resolveAllRoles, resolvePrimaryRole } from "@kaana/role-shells";
+import { getUser, logout } from "@/lib/api";
 import { userCanAccess } from "@/lib/permissions";
+
+const ALLOWED_ROLES = new Set(["owner", "manager", "accountant"]);
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -23,23 +18,22 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       router.replace("/");
       return;
     }
+
     const user = getUser();
-    if (!user) return;
+    if (!user) {
+      router.replace("/");
+      return;
+    }
 
     const primary = resolvePrimaryRole(user);
     if (primary === "super_admin") {
-      const handoff = readAuthHandoffFromStorage();
-      if (handoff) window.location.href = redirectUrlForRoleWithAuth("super_admin", handoff);
+      window.location.href = `${HQ_ADMIN_URL}${getAppEntryForRole(primary)}`;
       return;
     }
-    if (usesPosApp(primary)) {
-      const handoff = readAuthHandoffFromStorage();
-      if (handoff) window.location.href = redirectUrlForRoleWithAuth(primary, handoff);
-      return;
-    }
-    if (primary === "biller" || primary === "captain" || primary === "chef") {
-      const handoff = readAuthHandoffFromStorage();
-      if (handoff) window.location.href = redirectUrlForRoleWithAuth(primary, handoff);
+
+    if (!ALLOWED_ROLES.has(primary)) {
+      logout();
+      router.replace("/");
       return;
     }
 

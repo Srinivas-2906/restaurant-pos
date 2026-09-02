@@ -1,5 +1,5 @@
-import { ReceivePOModule } from "@/modules/inventory/PurchasesModule";
+import { PurchaseDashboardModule } from "@/modules/inventory/PurchasesModule";
 
-export default function PurchasesPage() {
-  return <ReceivePOModule />;
+export default function PurchasesDashboardPage() {
+  return <PurchaseDashboardModule />;
 }

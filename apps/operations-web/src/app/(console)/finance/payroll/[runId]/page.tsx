@@ -1,6 +1,6 @@
-import { PayrollRunDetailModule } from "@/modules/finance/PayrollModules";
+import { redirect } from "next/navigation";
 
-export default async function PayrollRunPage({ params }: { params: Promise<{ runId: string }> }) {
+export default async function LegacyPayrollRunRedirect({ params }: { params: Promise<{ runId: string }> }) {
   const { runId } = await params;
-  return <PayrollRunDetailModule runId={runId} />;
+  redirect(`/payroll/runs/${runId}`);
 }

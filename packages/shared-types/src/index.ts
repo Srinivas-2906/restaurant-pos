@@ -55,7 +55,10 @@ export const CreateOrderSchema = z.object({
   tableId: z.string().optional(),
   customerId: z.string().optional(),
   type: z.enum(["dine_in", "takeaway", "delivery"]).default("dine_in"),
-  source: z.enum(["dine_in", "swiggy", "zomato", "website", "phone", "walk_in"]).default("dine_in"),
+  source: z.enum([
+    "dine_in", "pos", "captain", "qr", "swiggy", "zomato", "ondc", "website", "phone", "walk_in",
+  ]).default("dine_in"),
+  fulfilment: z.enum(["restaurant", "aggregator", "customer_pickup"]).optional(),
   guestCount: z.number().int().positive().default(1),
   notes: z.string().optional(),
 });
@@ -79,14 +82,69 @@ export const SettleOrderSchema = z.object({
   customerPhone: z.string().optional(),
 });
 
+export const ReservationSourceEnum = z.enum([
+  "walk_in", "phone", "website", "whatsapp", "zomato_dining", "eazydiner", "district",
+]);
+
+export const ReservationStatusEnum = z.enum([
+  "pending", "confirmed", "arrived", "seated", "completed", "cancelled", "no_show",
+]);
+
 export const CreateReservationSchema = z.object({
   outletId: z.string(),
   guestName: z.string().min(1),
   guestPhone: z.string().min(10),
   guestCount: z.number().int().positive(),
   date: z.string().datetime(),
-  source: z.enum(["walk_in", "phone", "website", "zomato_dining", "eazydiner", "district"]).default("walk_in"),
+  source: ReservationSourceEnum.default("walk_in"),
   notes: z.string().optional(),
+  occasion: z.string().optional(),
+  specialRequest: z.string().optional(),
+  preferredArea: z.string().optional(),
+  advancePayment: z.number().min(0).optional(),
+  tableId: z.string().optional(),
+});
+
+export const UpdateReservationSchema = CreateReservationSchema.partial().omit({ outletId: true });
+
+export const AssignTableSchema = z.object({
+  tableId: z.string(),
+});
+
+export const OpenReservationOrderSchema = z.object({
+  terminalId: z.string().optional(),
+  createdById: z.string().optional(),
+});
+
+export const CreateWaitlistEntrySchema = z.object({
+  outletId: z.string(),
+  guestName: z.string().min(1),
+  guestPhone: z.string().min(10),
+  guestCount: z.number().int().positive(),
+  quotedWaitMins: z.number().int().positive().optional(),
+  notes: z.string().optional(),
+});
+
+export const UpdateWaitlistSchema = z.object({
+  guestName: z.string().min(1).optional(),
+  guestPhone: z.string().min(10).optional(),
+  guestCount: z.number().int().positive().optional(),
+  quotedWaitMins: z.number().int().positive().optional(),
+  notes: z.string().optional(),
+});
+
+export const ReorderWaitlistSchema = z.object({
+  outletId: z.string(),
+  orderedIds: z.array(z.string()).min(1),
+});
+
+export const PublicCreateReservationSchema = z.object({
+  guestName: z.string().min(1),
+  guestPhone: z.string().min(10),
+  guestCount: z.number().int().positive(),
+  date: z.string().datetime(),
+  occasion: z.string().optional(),
+  specialRequest: z.string().optional(),
 });
 
 export const PartnerSaveOrderSchema = z.object({
@@ -122,15 +180,37 @@ export type CreateUserDto = z.infer<typeof CreateUserSchema>;
 export type CreateOrderDto = z.infer<typeof CreateOrderSchema>;
 export type AddOrderItemDto = z.infer<typeof AddOrderItemSchema>;
 export type SettleOrderDto = z.infer<typeof SettleOrderSchema>;
-export type PartnerSaveOrderDto = z.infer<typeof PartnerSaveOrderSchema>;
+export type CreateReservationDto = z.infer<typeof CreateReservationSchema>;
+export type UpdateReservationDto = z.infer<typeof UpdateReservationSchema>;
+export type CreateWaitlistEntryDto = z.infer<typeof CreateWaitlistEntrySchema>;
+export type PublicCreateReservationDto = z.infer<typeof PublicCreateReservationSchema>;
 
 export interface JwtPayload {
   sub: string;
-  email: string;
+  email?: string;
   organizationId: string;
   outletId?: string;
   role?: string;
+  authMode?: "email" | "operational";
+  staffProfileId?: string;
+  userId?: string;
+  terminalId?: string;
+  permissions?: string[];
+  sessionId?: string;
+  displayName?: string;
 }
+
+export const PinLoginSchema = z.object({
+  staffProfileId: z.string().min(1),
+  pin: z.string().min(4).max(6),
+});
+
+export const SetStaffPinSchema = z.object({
+  pin: z.string().min(4).max(6).regex(/^\d+$/),
+});
+
+export type PinLoginDto = z.infer<typeof PinLoginSchema>;
+export type SetStaffPinDto = z.infer<typeof SetStaffPinSchema>;
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -139,8 +219,14 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
+export * from "./inventory";
+export * from "./permissions";
+export * from "./orders";
+
 export const WS_CHANNELS = {
   outletOrders: (outletId: string) => `outlet:${outletId}:orders`,
+  outletReservations: (outletId: string) => `outlet:${outletId}:reservations`,
+  outletWaitlist: (outletId: string) => `outlet:${outletId}:waitlist`,
   stationKots: (stationId: string) => `station:${stationId}:kots`,
   terminalSync: (terminalId: string) => `terminal:${terminalId}:sync`,
 } as const;

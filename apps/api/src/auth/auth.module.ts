@@ -6,6 +6,11 @@ import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "./jwt.strategy";
 import { RolesGuard } from "./roles.guard";
+import { PermissionsGuard } from "./permissions.guard";
+import { TerminalAuthGuard } from "./terminal-auth.guard";
+import { OperationalAuthService } from "./operational-auth.service";
+import { OperationalAuthController } from "./operational-auth.controller";
+import { TokenService } from "./token.service";
 
 @Module({
   imports: [
@@ -19,8 +24,24 @@ import { RolesGuard } from "./roles.guard";
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RolesGuard],
-  exports: [AuthService, JwtModule, RolesGuard],
+  controllers: [AuthController, OperationalAuthController],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    RolesGuard,
+    PermissionsGuard,
+    TerminalAuthGuard,
+    OperationalAuthService,
+    TokenService,
+  ],
+  exports: [
+    AuthService,
+    JwtModule,
+    RolesGuard,
+    PermissionsGuard,
+    TerminalAuthGuard,
+    OperationalAuthService,
+    TokenService,
+  ],
 })
 export class AuthModule {}

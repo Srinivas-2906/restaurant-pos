@@ -1,5 +1,5 @@
-import { MaterialsModule } from "@/modules/inventory/MaterialsModule";
+import { redirect } from "next/navigation";
 
-export default function MaterialsPage() {
-  return <MaterialsModule />;
+export default function MaterialsRedirect() {
+  redirect("/inventory/items");
 }
