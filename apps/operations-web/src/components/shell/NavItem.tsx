@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { buildPosLink, readAuthHandoffFromStorage } from "@kaana/role-shells";
+import { buildPosLink, buildReservationsLink, readAuthHandoffFromStorage } from "@kaana/role-shells";
 import { getOutletId } from "@/lib/api";
 import { getModuleIcon } from "./sidebar-config";
 
@@ -11,15 +12,27 @@ interface NavItemProps {
   label: string;
   moduleId: string;
   externalPos?: boolean;
+  externalReservations?: boolean;
   onNavigate?: () => void;
 }
 
-export function NavItem({ href, label, moduleId, externalPos, onNavigate }: NavItemProps) {
+export function NavItem({ href, label, moduleId, externalPos, externalReservations, onNavigate }: NavItemProps) {
   const pathname = usePathname();
-  const active = !externalPos && (pathname === href || pathname.startsWith(`${href}/`));
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const active =
+    mounted &&
+    !externalPos &&
+    !externalReservations &&
+    (pathname === href || pathname.startsWith(`${href}/`));
+
   const Icon = getModuleIcon(moduleId);
 
-  if (externalPos) {
+  if (externalPos || externalReservations) {
     return (
       <button
         type="button"
@@ -31,7 +44,10 @@ export function NavItem({ href, label, moduleId, externalPos, onNavigate }: NavI
             return;
           }
           const outletId = getOutletId();
-          window.location.href = buildPosLink(href, { ...handoff, outletId: outletId ?? handoff.outletId });
+          const payload = { ...handoff, outletId: outletId ?? handoff.outletId };
+          window.location.href = externalReservations
+            ? buildReservationsLink(href, payload)
+            : buildPosLink(href, payload);
         }}
         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-white/80 hover:bg-sidebar-hover hover:text-white"
       >

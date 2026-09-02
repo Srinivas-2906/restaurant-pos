@@ -70,25 +70,25 @@ export class PayrollService {
       },
     });
 
-    const hoursByUser = new Map<string, number>();
-    const daysWorkedByUser = new Map<string, Set<string>>();
+    const hoursByStaff = new Map<string, number>();
+    const daysWorkedByStaff = new Map<string, Set<string>>();
     for (const rec of attendance) {
       if (!rec.clockOut) continue;
       const hours = (rec.clockOut.getTime() - rec.clockIn.getTime()) / 3_600_000;
-      hoursByUser.set(rec.userId, (hoursByUser.get(rec.userId) ?? 0) + hours);
+      hoursByStaff.set(rec.staffProfileId, (hoursByStaff.get(rec.staffProfileId) ?? 0) + hours);
       const dayKey = rec.clockIn.toISOString().slice(0, 10);
-      const set = daysWorkedByUser.get(rec.userId) ?? new Set<string>();
+      const set = daysWorkedByStaff.get(rec.staffProfileId) ?? new Set<string>();
       set.add(dayKey);
-      daysWorkedByUser.set(rec.userId, set);
+      daysWorkedByStaff.set(rec.staffProfileId, set);
     }
 
-    const paidLeaveDaysByUser = new Map<string, number>();
+    const paidLeaveDaysByStaff = new Map<string, number>();
     for (const leave of leaves) {
       const leaveStart = leave.startDate < start ? start : leave.startDate;
       const leaveEnd = leave.endDate > end ? end : leave.endDate;
       const days =
         Math.floor((leaveEnd.getTime() - leaveStart.getTime()) / 86_400_000) + 1;
-      paidLeaveDaysByUser.set(leave.userId, (paidLeaveDaysByUser.get(leave.userId) ?? 0) + days);
+      paidLeaveDaysByStaff.set(leave.staffProfileId, (paidLeaveDaysByStaff.get(leave.staffProfileId) ?? 0) + days);
     }
 
     const holidayCount = holidays.length;
@@ -96,9 +96,9 @@ export class PayrollService {
     let totalNet = 0;
 
     for (const profile of staffProfiles) {
-      const hours = hoursByUser.get(profile.userId) ?? 0;
-      const workedDays = daysWorkedByUser.get(profile.userId)?.size ?? 0;
-      const paidLeaveDays = paidLeaveDaysByUser.get(profile.userId) ?? 0;
+      const hours = hoursByStaff.get(profile.id) ?? 0;
+      const workedDays = daysWorkedByStaff.get(profile.id)?.size ?? 0;
+      const paidLeaveDays = paidLeaveDaysByStaff.get(profile.id) ?? 0;
 
       if (profile.wageType === "hourly" && hours <= 0) continue;
       if (profile.wageType === "monthly" && workedDays <= 0 && paidLeaveDays <= 0) continue;
@@ -120,11 +120,11 @@ export class PayrollService {
           ? grossFromAttendance(hours, Number(profile.hourlyRate ?? 0))
           : grossFromMonthly(Number(profile.monthlySalary ?? 0), payableDays, periodDays);
 
-      const slip = calculatePayslip({ userId: profile.userId, grossPay: gross, hoursWorked: hours });
+      const slip = calculatePayslip({ userId: profile.id, grossPay: gross, hoursWorked: hours });
       await this.prisma.payslip.create({
         data: {
           payrollRunId: run.id,
-          userId: profile.userId,
+          staffProfileId: profile.id,
           grossPay: slip.grossPay,
           deductions: slip.deductions,
           netPay: slip.netPay,
@@ -230,7 +230,10 @@ export class PayrollService {
   async exportCsv(id: string) {
     const run = await this.getRun(id);
     const rows = run.payslips.map((s) => {
-      const name = `${s.staff.user.firstName} ${s.staff.user.lastName ?? ""}`.trim();
+      const name =
+        s.staff.displayName?.trim() ||
+        s.staff.legalName?.trim() ||
+        `${s.staff.firstName ?? s.staff.user?.firstName ?? ""} ${s.staff.lastName ?? s.staff.user?.lastName ?? ""}`.trim();
       return [
         s.staff.employeeCode,
         name,

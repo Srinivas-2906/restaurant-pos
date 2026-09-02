@@ -10,5 +10,5 @@ export default function LegacyRedirect() {
   useEffect(() => {
     window.location.href = redirectUrlForRole("owner");
   }, [router]);
-  return <p className="p-6 text-gray-500">Redirecting to Kaana Operations...</p>;
+  return <p className="p-6 text-gray-500">Redirecting to Kaana Kitchens Operations...</p>;
 }

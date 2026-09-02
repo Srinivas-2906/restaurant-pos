@@ -1,5 +1,5 @@
-import { LeavesModule } from "@/modules/manager/LeavesModule";
+import { redirect } from "next/navigation";
 
-export default function LeavesPage() {
-  return <LeavesModule />;
+export default function LegacyLeavesRedirect() {
+  redirect("/staff/leave");
 }

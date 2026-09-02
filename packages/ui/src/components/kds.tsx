@@ -70,3 +70,6 @@ export function StationSelector({ stations, onSelect }: {
     </div>
   );
 }
+
+export { KDSBoard, TableKOTCard, TableTicketTile, groupKotsByTable } from "./kds/index";
+export type { KdsQueueItem, TableKOTGroup, TableOrderSection, KdsBoardFilter } from "./kds/index";

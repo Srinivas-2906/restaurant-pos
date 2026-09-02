@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, getOutletId, monthRange, API_URL } from "@/lib/api";
-import { FinanceNav } from "./FinanceNav";
+import { PayrollNav } from "./PayrollNav";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { PageContent } from "@/components/shell/PageContent";
 import { Panel } from "@/components/ui/Panel";
@@ -44,22 +44,22 @@ export function PayrollModule() {
   return (
     <PageContent>
       <PageHeader
-        title="Payroll"
-        description="Create and review payroll runs."
+        title="Payroll Runs"
+        description="Create, validate and approve payroll runs."
         action={
           <button type="button" onClick={createRun} className="bg-kaana hover:bg-kaana-dark text-white px-4 py-2 rounded-xl text-sm font-medium">
             Run payroll (this month)
           </button>
         }
       />
-      <FinanceNav />
+      <PayrollNav />
       {msg && <p className="text-sm mb-4 text-green-700">{msg}</p>}
       <div className="space-y-3">
         {runs.length === 0 ? (
           <Panel><EmptyState title="No payroll runs" description="Create a payroll run for the current month." /></Panel>
         ) : (
           runs.map((run) => (
-            <Link key={run.id} href={`/finance/payroll/${run.id}`}>
+            <Link key={run.id} href={`/payroll/runs/${run.id}`}>
               <Panel className="hover:border-kaana/40 transition-colors cursor-pointer">
                 <div className="flex justify-between items-start">
                   <div>
@@ -93,7 +93,7 @@ interface RunDetail {
     id: string;
     grossPay: number | string;
     netPay: number | string;
-    staff: { employeeCode: string; user: { firstName: string; lastName: string | null } };
+    staff: { employeeCode: string; displayName?: string | null; legalName?: string | null; firstName?: string | null; lastName?: string | null; user?: { firstName: string; lastName: string | null } | null };
   }>;
 }
 
@@ -150,7 +150,7 @@ export function PayrollRunDetailModule({ runId }: { runId: string }) {
           )
         }
       />
-      <FinanceNav />
+      <PayrollNav />
       {msg && <p className="text-sm mb-4 text-green-700">{msg}</p>}
       {run && (
         <>
@@ -177,12 +177,12 @@ export function PayrollRunDetailModule({ runId }: { runId: string }) {
                   <tbody>
                     {run.payslips.map((s) => (
                       <tr key={s.id} className="border-t border-gray-100">
-                        <td className="p-3">{s.staff.user.firstName} {s.staff.user.lastName}</td>
+                        <td className="p-3">{s.staff.displayName || s.staff.legalName || `${s.staff.firstName ?? s.staff.user?.firstName ?? ""} ${s.staff.lastName ?? s.staff.user?.lastName ?? ""}`.trim()}</td>
                         <td className="p-3">{s.staff.employeeCode}</td>
                         <td className="p-3">{formatCurrency(Number(s.grossPay))}</td>
                         <td className="p-3">{formatCurrency(Number(s.netPay))}</td>
                         <td className="p-3">
-                          <Link href={`/finance/payroll/${runId}/payslip/${s.id}`} className="text-kaana font-medium hover:underline">View</Link>
+                          <Link href={`/payroll/runs/${runId}/payslip/${s.id}`} className="text-kaana font-medium hover:underline">View</Link>
                         </td>
                       </tr>
                     ))}
@@ -207,12 +207,16 @@ interface PayslipDetail {
   payrollRun: { periodStart: string; periodEnd: string; organization: { name: string }; outlet?: { name: string } | null };
   staff: {
     employeeCode: string;
+    displayName?: string | null;
+    legalName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
     bankName?: string | null;
     bankAccount?: string | null;
     ifsc?: string | null;
     department?: { name: string } | null;
     designation?: { name: string } | null;
-    user: { firstName: string; lastName: string | null; email: string };
+    user?: { firstName: string; lastName: string | null; email: string } | null;
   };
 }
 
@@ -231,7 +235,10 @@ export function PayslipModule({ runId, payslipId }: { runId: string; payslipId: 
     return <PageContent><p className="text-gray-400">Loading payslip...</p></PageContent>;
   }
 
-  const name = `${slip.staff.user.firstName} ${slip.staff.user.lastName ?? ""}`.trim();
+  const name =
+    slip.staff.displayName?.trim() ||
+    slip.staff.legalName?.trim() ||
+    `${slip.staff.firstName ?? slip.staff.user?.firstName ?? ""} ${slip.staff.lastName ?? slip.staff.user?.lastName ?? ""}`.trim();
   const breakdown = slip.breakdown ?? {};
 
   return (
@@ -241,12 +248,12 @@ export function PayslipModule({ runId, payslipId }: { runId: string; payslipId: 
         description={`${name} · ${slip.staff.employeeCode}`}
         action={
           <div className="flex gap-2">
-            <Link href={`/finance/payroll/${runId}`} className="border border-gray-200 px-4 py-2 rounded-xl text-sm">Back</Link>
+            <Link href={`/payroll/runs/${runId}`} className="border border-gray-200 px-4 py-2 rounded-xl text-sm">Back</Link>
             <button type="button" onClick={printPayslip} className="bg-kaana text-white px-4 py-2 rounded-xl text-sm font-medium">Print</button>
           </div>
         }
       />
-      <FinanceNav />
+      <PayrollNav />
 
       <div id="payslip-document" className="bg-white border border-gray-200 rounded-xl p-8 max-w-3xl print:border-0 print:shadow-none">
         <div className="text-center border-b border-gray-200 pb-4 mb-6">

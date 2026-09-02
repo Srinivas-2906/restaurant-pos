@@ -1,10 +1,24 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import { Injectable, BadRequestException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { EventsGateway } from "../events/events.gateway";
 import { InventoryService } from "../inventory/inventory.service";
 import { AuditService } from "../audit/audit.service";
 import { PrintBridgeService } from "../print/print-bridge.service";
+import { createAggregatorAdapter } from "@kaana/integrations";
+import {
+  ACTION_PERMISSIONS,
+  getOutletBillingMode,
+  hasActionPermission,
+  inferFulfilment,
+  type FulfilmentType,
+  type OrderSource,
+  type OrderType,
+} from "@kaana/shared-types";
 import { Decimal } from "@prisma/client/runtime/library";
+
+const ACTIVE_ORDER_STATUSES = [
+  "draft", "open", "kot_fired", "preparing", "ready", "served", "billed",
+] as const;
 
 @Injectable()
 export class OrdersService {
@@ -23,8 +37,20 @@ export class OrdersService {
 
   async create(data: {
     outletId: string; terminalId?: string; tableId?: string; customerId?: string;
-    type?: string; source?: string; guestCount?: number; notes?: string; createdById?: string;
+    type?: string; source?: string; fulfilment?: string; guestCount?: number; notes?: string;
+    createdById?: string; reservationId?: string; actorRole?: string;
   }) {
+    const orderType = (data.type ?? "dine_in") as OrderType;
+    let source = (data.source ?? "dine_in") as OrderSource;
+    if (data.actorRole === "captain" && !data.source) {
+      source = "captain";
+    }
+    if (data.actorRole === "biller" && !data.source) {
+      source = "pos";
+    }
+    const fulfilment = (data.fulfilment as FulfilmentType | undefined) ??
+      inferFulfilment(orderType, source);
+
     const orderNumber = await this.nextOrderNumber(data.outletId);
 
     const order = await this.prisma.order.create({
@@ -33,15 +59,17 @@ export class OrdersService {
         terminalId: data.terminalId,
         tableId: data.tableId,
         customerId: data.customerId,
+        reservationId: data.reservationId,
         createdById: data.createdById,
         orderNumber,
-        type: (data.type ?? "dine_in") as never,
-        source: (data.source ?? "dine_in") as never,
+        type: orderType as never,
+        source: source as never,
+        fulfilment: fulfilment as never,
         guestCount: data.guestCount ?? 1,
         notes: data.notes,
         status: "open",
       },
-      include: { items: true, table: true },
+      include: { items: true, table: true, createdBy: { select: { id: true, firstName: true, lastName: true } } },
     });
 
     if (data.tableId) {
@@ -55,6 +83,24 @@ export class OrdersService {
     return order;
   }
 
+  async createFromReservation(data: {
+    outletId: string; tableId: string; customerId?: string; reservationId: string;
+    guestCount: number; notes?: string; terminalId?: string; createdById?: string;
+  }) {
+    return this.create({
+      outletId: data.outletId,
+      tableId: data.tableId,
+      customerId: data.customerId,
+      reservationId: data.reservationId,
+      guestCount: data.guestCount,
+      notes: data.notes,
+      terminalId: data.terminalId,
+      createdById: data.createdById,
+      type: "dine_in",
+      source: "dine_in",
+    });
+  }
+
   async addItem(orderId: string, data: {
     menuItemId: string; variantId?: string; quantity?: number; notes?: string; addons?: unknown[];
   }) {
@@ -63,7 +109,7 @@ export class OrdersService {
       include: { items: true },
     });
 
-    if (!["draft", "open", "kot_fired", "billed"].includes(order.status)) {
+    if (!["draft", "open", "kot_fired", "preparing", "ready", "served", "billed"].includes(order.status)) {
       throw new BadRequestException("Cannot modify order in current status");
     }
 
@@ -112,7 +158,7 @@ export class OrdersService {
       },
     });
 
-    if (order.status === "kot_fired" || order.status === "billed") {
+    if (["kot_fired", "billed", "served"].includes(order.status)) {
       await this.prisma.order.update({ where: { id: orderId }, data: { status: "open" } });
       if (order.tableId) {
         await this.prisma.table.update({ where: { id: order.tableId }, data: { status: "seated" } });
@@ -160,13 +206,17 @@ export class OrdersService {
     return order;
   }
 
-  async removeItem(orderId: string, itemId: string) {
+  async removeItem(orderId: string, itemId: string, options?: { asWastage?: boolean }) {
     const item = await this.prisma.orderItem.findFirstOrThrow({
       where: { id: itemId, orderId },
+      include: { order: true },
     });
 
     if (item.kotId || item.status !== "pending") {
-      throw new BadRequestException("Cannot remove item after KOT is fired");
+      if (!item.kotId) {
+        throw new BadRequestException("Cannot remove item after KOT is fired");
+      }
+      await this.inventory.releaseCommit(item.order.outletId, itemId, options?.asWastage ?? true);
     }
 
     await this.prisma.orderItem.delete({ where: { id: itemId } });
@@ -181,27 +231,37 @@ export class OrdersService {
       where: {
         outletId,
         tableId,
-        status: { in: ["draft", "open", "kot_fired", "billed"] },
+        status: { in: [...ACTIVE_ORDER_STATUSES] },
       },
       include: {
         items: { include: { menuItem: true }, orderBy: { id: "asc" } },
         table: true,
-        kots: { include: { kitchenStation: true } },
+        kots: { include: { kitchenStation: true }, orderBy: { firedAt: "asc" } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: "desc" },
     });
   }
 
-  async fireKOT(orderId: string) {
+  async fireKOT(orderId: string, userId?: string) {
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id: orderId },
       include: {
         items: { where: { kotId: null }, include: { menuItem: { include: { kitchenStation: true } } } },
+        table: true,
       },
     });
 
-    const itemsByStation = new Map<string, typeof order.items>();
-    for (const item of order.items) {
+    const pendingItems = order.items.filter((i) => !i.kotId && i.status === "pending");
+    const unassigned = pendingItems.filter((i) => !i.menuItem.kitchenStationId);
+    if (unassigned.length > 0) {
+      throw new BadRequestException(
+        `Cannot fire KOT: items missing kitchen station — ${unassigned.map((i) => i.name).join(", ")}`,
+      );
+    }
+
+    const itemsByStation = new Map<string, typeof pendingItems>();
+    for (const item of pendingItems) {
       const stationId = item.menuItem.kitchenStationId;
       if (!stationId) continue;
       if (!itemsByStation.has(stationId)) itemsByStation.set(stationId, []);
@@ -224,7 +284,7 @@ export class OrdersService {
             })),
           },
         },
-        include: { items: true, kitchenStation: true },
+        include: { items: { include: { orderItem: true } }, kitchenStation: true },
       });
 
       await this.prisma.orderItem.updateMany({
@@ -234,22 +294,168 @@ export class OrdersService {
 
       kots.push(kot);
       this.events.emitKOTUpdate(stationId, kot);
+
+      const org = await this.prisma.outlet.findUnique({
+        where: { id: order.outletId },
+        select: { brand: { select: { organizationId: true } } },
+      });
+      if (org) {
+        await this.audit.log({
+          organizationId: org.brand.organizationId,
+          userId,
+          outletId: order.outletId,
+          action: "kot_fired",
+          entityType: "order",
+          entityId: orderId,
+          metadata: {
+            kotId: kot.id,
+            kotNumber: kot.kotNumber,
+            stationName: kot.kitchenStation.name,
+            tableNumber: order.table?.number ?? null,
+            itemNames: items.map((i) => i.name),
+          },
+        });
+      }
     }
 
     if (kots.length === 0) {
+      const skipped = pendingItems.filter((i) => !i.menuItem.kitchenStationId);
+      if (skipped.length > 0) {
+        throw new BadRequestException(
+          `Cannot fire KOT: items missing kitchen station — ${skipped.map((i) => i.name).join(", ")}`,
+        );
+      }
       throw new BadRequestException("No pending items to fire to kitchen");
     }
 
     const hasUnfired = await this.prisma.orderItem.count({
-      where: { orderId, kotId: null },
+      where: { orderId, kotId: null, status: "pending" },
     });
+
+    const nextStatus = hasUnfired > 0 ? "open" : "kot_fired";
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: nextStatus },
+    });
+
+    const allItems = await this.prisma.orderItem.findMany({ where: { orderId } });
+    const firedItems = allItems.filter((i) => i.kotId);
+    const inKitchenCount = firedItems.filter((i) => i.status === "kot_fired").length;
+
+    this.events.emitOrderUpdate(order.outletId, {
+      type: "kot_fired",
+      orderId,
+      tableId: order.tableId,
+      kotNumbers: kots.map((k) => k.kotNumber),
+      inKitchenCount,
+      readyCount: 0,
+      orderStatus: nextStatus,
+    });
+
+    const firedOrderItems = await this.prisma.orderItem.findMany({
+      where: { orderId, kotId: { not: null }, id: { in: pendingItems.map((i) => i.id) } },
+    });
+    await this.inventory.commitStockForOrder(
+      order.outletId,
+      orderId,
+      firedOrderItems.map((i) => ({ id: i.id, menuItemId: i.menuItemId, quantity: i.quantity })),
+    );
+
+    return kots;
+  }
+
+  async markItemServed(orderId: string, itemId: string, userId?: string) {
+    const item = await this.prisma.orderItem.findFirstOrThrow({
+      where: { id: itemId, orderId },
+      include: { order: { include: { table: true } } },
+    });
+
+    if (item.status !== "ready") {
+      throw new BadRequestException("Only ready items can be marked as served");
+    }
+
+    await this.prisma.orderItem.update({
+      where: { id: itemId },
+      data: { status: "served" },
+    });
+
+    if (item.kotId) {
+      await this.prisma.kOTItem.updateMany({
+        where: { kotId: item.kotId, orderItemId: itemId },
+        data: { status: "served" },
+      });
+
+      const kotItems = await this.prisma.kOTItem.findMany({ where: { kotId: item.kotId } });
+      if (kotItems.length > 0 && kotItems.every((ki) => ki.status === "served")) {
+        await this.prisma.kOT.update({
+          where: { id: item.kotId },
+          data: { status: "served" },
+        });
+      }
+    }
+
+    const order = item.order;
+    const items = await this.prisma.orderItem.findMany({ where: { orderId } });
+    const firedItems = items.filter((i) => i.kotId);
+    const pendingUnfired = items.filter((i) => !i.kotId).length;
+    const inKitchenCount = firedItems.filter((i) => i.status === "kot_fired" || i.status === "preparing").length;
+    const readyCount = firedItems.filter((i) => i.status === "ready").length;
+    const servedCount = firedItems.filter((i) => i.status === "served").length;
+
+    let orderStatus: string;
+    if (pendingUnfired > 0) {
+      orderStatus = inKitchenCount > 0 || readyCount > 0 || servedCount > 0 ? "preparing" : "open";
+    } else if (firedItems.length > 0 && servedCount === firedItems.length) {
+      orderStatus = "served";
+    } else if (firedItems.length > 0 && readyCount + servedCount === firedItems.length) {
+      orderStatus = "ready";
+    } else if (inKitchenCount > 0) {
+      orderStatus = "preparing";
+    } else {
+      orderStatus = "kot_fired";
+    }
 
     await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: hasUnfired > 0 ? "open" : "kot_fired" },
+      data: { status: orderStatus as never },
     });
 
-    return kots;
+    const org = await this.prisma.outlet.findUnique({
+      where: { id: order.outletId },
+      select: { brand: { select: { organizationId: true } } },
+    });
+
+    if (org) {
+      await this.audit.log({
+        organizationId: org.brand.organizationId,
+        userId,
+        outletId: order.outletId,
+        action: "item_served",
+        entityType: "order",
+        entityId: orderId,
+        metadata: {
+          itemId,
+          itemName: item.name,
+          quantity: item.quantity,
+          tableNumber: order.table?.number ?? null,
+        },
+      });
+    }
+
+    this.events.emitOrderUpdate(order.outletId, {
+      type: "item_served",
+      orderId,
+      tableId: order.tableId,
+      itemId,
+      itemName: item.name,
+      tableNumber: order.table?.number ?? null,
+      inKitchenCount,
+      readyCount,
+      servedCount,
+      orderStatus,
+    });
+
+    return this.findOne(orderId);
   }
 
   async printBill(orderId: string) {
@@ -318,14 +524,66 @@ export class OrdersService {
     return { bill, order: updated };
   }
 
+  async requestBill(orderId: string, userId?: string) {
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: { items: true, table: true },
+    });
+
+    if (order.status === "settled" || order.status === "cancelled" || order.status === "voided") {
+      throw new BadRequestException("Cannot request bill for a closed order");
+    }
+    if (order.items.length === 0) {
+      throw new BadRequestException("Add items before requesting the bill");
+    }
+
+    const now = new Date();
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        billRequestedAt: now,
+        billRequestedByUserId: userId ?? null,
+      },
+    });
+
+    if (order.tableId) {
+      await this.prisma.table.update({
+        where: { id: order.tableId },
+        data: { status: "bill_requested" },
+      });
+    }
+
+    const updated = await this.findOne(orderId);
+    this.events.emitOrderUpdate(order.outletId, {
+      type: "bill_requested",
+      orderId,
+      tableId: order.tableId,
+      tableNumber: order.table?.number ?? null,
+      orderNumber: order.orderNumber,
+      totalAmount: order.totalAmount,
+      billRequestedAt: now.toISOString(),
+      order: updated,
+    });
+
+    return updated;
+  }
+
   async settle(orderId: string, data: {
     payments: Array<{ method: string; amount: number; reference?: string }>;
     discountAmount?: number; loyaltyPointsUsed?: number; customerPhone?: string;
-  }) {
+  }, actor?: { role?: string; permissions?: string[] }) {
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id: orderId },
       include: { items: { include: { menuItem: true } }, outlet: true },
     });
+
+    if (actor?.role === "captain") {
+      const billingMode = getOutletBillingMode(order.outlet.settings);
+      const perms = actor.permissions ?? [];
+      if (billingMode !== "captain_can_settle" || !hasActionPermission(perms, ACTION_PERMISSIONS.settle_bill)) {
+        throw new ForbiddenException("Captain cannot settle bills for this outlet");
+      }
+    }
 
     if (order.status === "settled") {
       throw new BadRequestException("Order is already settled");
@@ -339,7 +597,13 @@ export class OrdersService {
     }
 
     for (const item of order.items) {
-      await this.inventory.deductForSale(order.outletId, item.menuItemId, item.quantity, `${orderId}:${item.id}`);
+      await this.inventory.consumeCommittedStock(
+        order.outletId,
+        item.menuItemId,
+        item.quantity,
+        orderId,
+        item.id,
+      );
     }
 
     await this.prisma.payment.createMany({
@@ -369,6 +633,15 @@ export class OrdersService {
         where: { id: order.tableId },
         data: { status: "free" },
       });
+    }
+
+    if (order.reservationId) {
+      const reservation = await this.prisma.reservation.update({
+        where: { id: order.reservationId },
+        data: { status: "completed" },
+        include: { table: true, customer: true, order: true },
+      });
+      this.events.emitReservationUpdate(order.outletId, reservation);
     }
 
     const settled = await this.findOne(orderId);
@@ -433,9 +706,13 @@ export class OrdersService {
     });
   }
 
-  findByOutlet(outletId: string, status?: string) {
+  findByOutlet(outletId: string, status?: string, type?: string) {
     return this.prisma.order.findMany({
-      where: { outletId, ...(status ? { status: status as never } : {}) },
+      where: {
+        outletId,
+        ...(status ? { status: status as never } : {}),
+        ...(type ? { type: type as never } : {}),
+      },
       include: { items: true, table: true, payments: true, invoice: true },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -446,14 +723,63 @@ export class OrdersService {
     return this.prisma.order.findUniqueOrThrow({
       where: { id },
       include: {
-        items: { include: { menuItem: true } },
+        items: { include: { menuItem: true }, orderBy: { id: "asc" } },
         table: true,
         payments: true,
         invoice: true,
-        kots: { include: { kitchenStation: true, items: true } },
+        kots: { include: { kitchenStation: true, items: true }, orderBy: { firedAt: "asc" } },
         customer: true,
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+  }
+
+  async getLiveOrders(outletId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        outletId,
+        status: { in: ["open", "kot_fired", "preparing", "ready", "served", "billed"] },
+      },
+      include: {
+        items: { select: { id: true } },
+        table: { select: { number: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const buckets = {
+      dineIn: 0,
+      takeaway: 0,
+      ownDelivery: 0,
+      swiggy: 0,
+      zomato: 0,
+      other: 0,
+    };
+
+    for (const order of orders) {
+      if (order.type === "dine_in") buckets.dineIn += 1;
+      else if (order.type === "takeaway") buckets.takeaway += 1;
+      else if (order.type === "delivery" && order.source === "swiggy") buckets.swiggy += 1;
+      else if (order.type === "delivery" && order.source === "zomato") buckets.zomato += 1;
+      else if (order.type === "delivery") buckets.ownDelivery += 1;
+      else buckets.other += 1;
+    }
+
+    return {
+      total: orders.length,
+      buckets,
+      orders: orders.map((o) => ({
+        id: o.id,
+        orderNumber: o.orderNumber,
+        type: o.type,
+        source: o.source,
+        status: o.status,
+        totalAmount: o.totalAmount,
+        tableNumber: o.table?.number ?? null,
+        itemCount: o.items.length,
+        billRequestedAt: o.billRequestedAt?.toISOString() ?? null,
+      })),
+    };
   }
 
   async splitTable(sourceOrderId: string, itemIds: string[], targetTableId: string) {
@@ -480,10 +806,133 @@ export class OrdersService {
       where: {
         outletId,
         source: { in: ["swiggy", "zomato", "website", "phone"] },
-        status: { in: ["open", "kot_fired", "preparing"] },
+        status: { in: ["open", "kot_fired", "preparing", "ready"] },
       },
       include: { items: true },
       orderBy: { createdAt: "asc" },
     });
+  }
+
+  async cancelOrder(orderId: string, reason?: string) {
+    const order = await this.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+
+    if (["settled", "cancelled", "voided"].includes(order.status)) {
+      throw new BadRequestException("Order cannot be cancelled in current status");
+    }
+
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: "cancelled",
+        notes: reason
+          ? [order.notes, `Cancelled: ${reason}`].filter(Boolean).join("\n")
+          : order.notes,
+      },
+      include: { items: true, table: true },
+    });
+
+    if (order.externalOrderId && ["swiggy", "zomato", "website"].includes(order.source)) {
+      const adapter = createAggregatorAdapter(order.source);
+      await adapter.acknowledgeOrder(order.externalOrderId, "rejected");
+    }
+
+    this.events.emitOrderUpdate(order.outletId, {
+      type: "order_cancelled",
+      orderId: order.id,
+      source: order.source,
+      externalOrderId: order.externalOrderId,
+      orderStatus: "cancelled",
+    });
+
+    return updated;
+  }
+
+  async getKitchenTimeline(orderId: string) {
+    type TimelineEntry = {
+      at: string;
+      type: string;
+      label: string;
+      kotNumber?: string;
+      stationName?: string;
+      itemNames?: string[];
+    };
+
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: {
+        kots: {
+          include: { kitchenStation: true, items: { include: { orderItem: true } } },
+          orderBy: { firedAt: "asc" },
+        },
+        table: true,
+      },
+    });
+
+    const entries: TimelineEntry[] = [];
+
+    for (const kot of order.kots) {
+      entries.push({
+        at: kot.firedAt.toISOString(),
+        type: "kot_fired",
+        label: `${kot.kotNumber} sent to ${kot.kitchenStation.name}`,
+        kotNumber: kot.kotNumber,
+        stationName: kot.kitchenStation.name,
+        itemNames: kot.items.map((i) => `${i.quantity}x ${i.orderItem.name}`),
+      });
+      if (kot.readyAt) {
+        entries.push({
+          at: kot.readyAt.toISOString(),
+          type: "kot_ready",
+          label: `${kot.kotNumber} ready at ${kot.kitchenStation.name}`,
+          kotNumber: kot.kotNumber,
+          stationName: kot.kitchenStation.name,
+          itemNames: kot.items.map((i) => `${i.quantity}x ${i.orderItem.name}`),
+        });
+      } else if (kot.status === "preparing") {
+        entries.push({
+          at: kot.firedAt.toISOString(),
+          type: "kot_preparing",
+          label: `${kot.kotNumber} preparing at ${kot.kitchenStation.name}`,
+          kotNumber: kot.kotNumber,
+          stationName: kot.kitchenStation.name,
+          itemNames: kot.items.map((i) => `${i.quantity}x ${i.orderItem.name}`),
+        });
+      }
+    }
+
+    const org = await this.prisma.outlet.findUnique({
+      where: { id: order.outletId },
+      select: { brand: { select: { organizationId: true } } },
+    });
+
+    if (org) {
+      const auditLogs = await this.prisma.auditLog.findMany({
+        where: {
+          entityId: orderId,
+          entityType: "order",
+          action: "item_served",
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      for (const log of auditLogs) {
+        const meta = log.metadata as { itemName?: string; quantity?: number } | null;
+        entries.push({
+          at: log.createdAt.toISOString(),
+          type: "item_served",
+          label: `${meta?.quantity ?? 1}x ${meta?.itemName ?? "Item"} served`,
+          itemNames: meta?.itemName ? [`${meta.quantity ?? 1}x ${meta.itemName}`] : undefined,
+        });
+      }
+    }
+
+    entries.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+    return {
+      orderId,
+      orderNumber: order.orderNumber,
+      tableNumber: order.table?.number ?? null,
+      entries,
+    };
   }
 }

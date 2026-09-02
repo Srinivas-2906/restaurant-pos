@@ -26,6 +26,14 @@ export class EventsGateway implements OnGatewayConnection {
     this.server.to(`outlet:${outletId}:orders`).emit("order:update", data);
   }
 
+  emitReservationUpdate(outletId: string, data: unknown) {
+    this.server.to(`outlet:${outletId}:reservations`).emit("reservation:update", data);
+  }
+
+  emitWaitlistUpdate(outletId: string, data: unknown) {
+    this.server.to(`outlet:${outletId}:waitlist`).emit("waitlist:update", data);
+  }
+
   emitKOTUpdate(stationId: string, data: unknown) {
     this.server.to(`station:${stationId}:kots`).emit("kot:update", data);
   }

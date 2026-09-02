@@ -6,9 +6,14 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/staff", label: "Team", exact: true },
   { href: "/staff/attendance", label: "Attendance" },
-  { href: "/staff/shifts", label: "Shifts" },
-  { href: "/staff/leaves", label: "Leaves" },
-  { href: "/staff/masters", label: "Masters" },
+  { href: "/staff/roster", label: "Roster & Shifts" },
+  { href: "/staff/leave", label: "Leave" },
+  { href: "/staff/documents", label: "Documents" },
+  { href: "/staff/training", label: "Training & Health" },
+  { href: "/staff/contractors", label: "Contractors" },
+  { href: "/staff/compliance", label: "Compliance" },
+  { href: "/staff/grievances", label: "Grievances" },
+  { href: "/staff/reports", label: "Reports" },
 ];
 
 export function StaffNav() {

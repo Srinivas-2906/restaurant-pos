@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/finance/payroll", label: "Payroll" },
-  { href: "/finance", label: "Sales & GST" },
+  { href: "/finance", label: "Sales & GST", exact: true },
   { href: "/finance/gst", label: "GST Export" },
   { href: "/finance/reconciliation", label: "Reconciliation" },
 ];
@@ -15,7 +14,7 @@ export function FinanceNav() {
   return (
     <div className="flex gap-2 mb-6 flex-wrap">
       {TABS.map((t) => {
-        const active = pathname === t.href || (t.href !== "/finance" && pathname.startsWith(`${t.href}/`)) || (t.href === "/finance/payroll" && pathname.startsWith("/finance/payroll"));
+        const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
         return (
           <Link
             key={t.href}

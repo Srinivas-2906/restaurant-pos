@@ -13,20 +13,24 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ClosingTracker } from "@/components/inventory/ClosingTracker";
 import { formatCurrency } from "@kaana/ui";
 
-interface StockSummary {
+interface Dashboard {
   totalValue: number;
   totalItems: number;
   belowParCount: number;
   lowStockCount: number;
-  lowStockItems: Array<{ id: string; name: string; currentStock: number; minStock: number; unit: string }>;
+  outOfStockCount: number;
+  lowStockItems: Array<{ id: string; name: string; currentStock: number; available: number; reorderLevel: number; unit: string }>;
   categoryBreakdown: Array<{ name: string; value: number; count: number }>;
   todayClosing: { status: string } | null;
+  todayFlow: { openingValue: number; purchasesReceived: number; consumption: number; wastage: number; transfers: number };
+  alerts: Array<{ id: string; type: string; message: string; ingredient?: string }>;
+  reorderSuggestions: Array<{ ingredientId: string; name: string; suggestedQty: number; unit: string }>;
 }
 
 const CHART_COLORS = ["#1e4038", "#ea580c", "#2563eb", "#7c3aed", "#059669", "#dc2626"];
 
 export function InventoryModule() {
-  const [summary, setSummary] = useState<StockSummary | null>(null);
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -34,8 +38,8 @@ export function InventoryModule() {
 
   function load() {
     if (!outletId) return;
-    api<StockSummary>(`/inventory/outlets/${outletId}/stock-summary`)
-      .then(setSummary)
+    api<Dashboard>(`/inventory/outlets/${outletId}/dashboard`)
+      .then(setDashboard)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }
@@ -59,10 +63,10 @@ export function InventoryModule() {
   return (
     <PageContent>
       <PageHeader
-        title="Inventory"
-        description="Stock health, alerts, and daily closing."
+        title="Inventory Overview"
+        description="Stock health, alerts, and today's flow."
         action={
-          summary?.todayClosing?.status !== "completed" ? (
+          dashboard?.todayClosing?.status !== "completed" ? (
             <button type="button" onClick={recordClosing} className="bg-kaana hover:bg-kaana-dark text-white px-4 py-2 rounded-xl text-sm font-medium">
               Record today&apos;s closing
             </button>
@@ -77,60 +81,93 @@ export function InventoryModule() {
         <p className="text-gray-400 text-sm">Loading...</p>
       ) : (
         <>
-          <div className="grid md:grid-cols-4 gap-4 mb-6">
-            <MetricCard label="Stock value" value={formatCurrency(summary?.totalValue ?? 0)} />
-            <MetricCard label="Ingredients" value={String(summary?.totalItems ?? 0)} />
-            <MetricCard label="Below par" value={String(summary?.belowParCount ?? 0)} />
-            <MetricCard label="Low stock" value={String(summary?.lowStockCount ?? 0)} />
+          <div className="grid md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+            <MetricCard label="Stock value" value={formatCurrency(dashboard?.totalValue ?? 0)} />
+            <MetricCard label="Items" value={String(dashboard?.totalItems ?? 0)} />
+            <MetricCard label="Low stock" value={String(dashboard?.lowStockCount ?? 0)} />
+            <MetricCard label="Out of stock" value={String(dashboard?.outOfStockCount ?? 0)} />
+            <MetricCard label="Today's purchases" value={formatCurrency(dashboard?.todayFlow.purchasesReceived ?? 0)} />
+            <MetricCard label="Today's consumption" value={formatCurrency(dashboard?.todayFlow.consumption ?? 0)} />
           </div>
 
           {outletId && <ClosingTracker outletId={outletId} onClosingRecorded={load} />}
 
-          <div className="grid lg:grid-cols-2 gap-6 mt-6">
+          {(dashboard?.alerts.length ?? 0) > 0 && (
+            <Panel title="Needs attention" className="mb-6">
+              <ul className="divide-y divide-gray-100 text-sm">
+                {dashboard?.alerts.map((a) => (
+                  <li key={a.id} className="py-2 text-amber-800">{a.message}</li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+
+          <Panel title="Today's stock flow" className="mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div><p className="text-gray-500">Stock value</p><p className="font-semibold">{formatCurrency(dashboard?.todayFlow.openingValue ?? 0)}</p></div>
+              <div><p className="text-gray-500">Purchases</p><p className="font-semibold text-green-600">+{formatCurrency(dashboard?.todayFlow.purchasesReceived ?? 0)}</p></div>
+              <div><p className="text-gray-500">Consumption</p><p className="font-semibold text-red-600">−{formatCurrency(dashboard?.todayFlow.consumption ?? 0)}</p></div>
+              <div><p className="text-gray-500">Wastage</p><p className="font-semibold">{formatCurrency(dashboard?.todayFlow.wastage ?? 0)}</p></div>
+              <div><p className="text-gray-500">Transfers</p><p className="font-semibold">{dashboard?.todayFlow.transfers ?? 0}</p></div>
+            </div>
+          </Panel>
+
+          <div className="grid lg:grid-cols-2 gap-6">
             <Panel title="Low stock alerts">
-              {(summary?.lowStockItems.length ?? 0) === 0 ? (
-                <EmptyState title="All stocked" description="No items below minimum levels." />
+              {(dashboard?.lowStockItems.length ?? 0) === 0 ? (
+                <EmptyState title="All stocked" description="No items below reorder level." />
               ) : (
                 <ul className="divide-y divide-gray-100">
-                  {summary?.lowStockItems.map((i) => (
+                  {dashboard?.lowStockItems.map((i) => (
                     <li key={i.id} className="py-3 flex justify-between text-sm">
                       <span className="font-medium">{i.name}</span>
-                      <span className="text-red-600">{i.currentStock} / {i.minStock} {i.unit}</span>
+                      <span className="text-red-600">{i.available.toFixed(2)} / {i.reorderLevel} {i.unit}</span>
                     </li>
                   ))}
                 </ul>
               )}
-              <Link href="/inventory/materials" className="inline-block mt-4 text-sm text-kaana font-medium hover:underline">
-                Manage materials
+              <Link href="/inventory/items" className="inline-block mt-4 text-sm text-kaana font-medium hover:underline">
+                Manage items
               </Link>
             </Panel>
 
-            <Panel title="Stock by category">
-              {(summary?.categoryBreakdown.length ?? 0) === 0 ? (
-                <EmptyState title="No categories" description="Add categories when creating materials." />
+            <Panel title="Reorder suggestions">
+              {(dashboard?.reorderSuggestions.length ?? 0) === 0 ? (
+                <EmptyState title="No suggestions" description="All items above reorder levels." />
               ) : (
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={summary?.categoryBreakdown}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={2}
-                      >
-                        {summary?.categoryBreakdown.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <ul className="divide-y divide-gray-100 text-sm">
+                  {dashboard?.reorderSuggestions.map((s) => (
+                    <li key={s.ingredientId} className="py-3 flex justify-between">
+                      <span>{s.name}</span>
+                      <span className="font-medium">Order {s.suggestedQty} {s.unit}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
+              <Link href="/purchases/orders" className="inline-block mt-4 text-sm text-kaana font-medium hover:underline">
+                Create PO
+              </Link>
             </Panel>
           </div>
+
+          <Panel title="Stock by category" className="mt-6">
+            {(dashboard?.categoryBreakdown.length ?? 0) === 0 ? (
+              <EmptyState title="No categories" description="Add categories when creating items." />
+            ) : (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={dashboard?.categoryBreakdown} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                      {dashboard?.categoryBreakdown.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </Panel>
         </>
       )}
     </PageContent>

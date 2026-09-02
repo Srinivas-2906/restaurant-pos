@@ -1,5 +1,6 @@
 "use client";
 
+import { KaanaBrand } from "@kaana/ui";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getNavForRoles } from "@kaana/role-shells";
@@ -15,10 +16,10 @@ export function ConsoleNav() {
 
   return (
     <header className="bg-white border-b border-gray-200">
-      <div className="px-6 py-3 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-6 flex-wrap">
-          <Link href="/overview" className="text-xl font-bold text-orange-600">
-            Kaana Operations
+      <div className="px-4 sm:px-6 py-3 flex items-center justify-between flex-wrap gap-3 min-w-0">
+        <div className="flex items-center gap-4 sm:gap-6 flex-wrap min-w-0">
+          <Link href="/overview" className="shrink-0">
+            <KaanaBrand size="xs" framed appLabel="Operations" labelClassName="text-gray-500" />
           </Link>
           <nav className="flex items-center gap-4 flex-wrap">
             {nav.map((n) => (

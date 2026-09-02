@@ -1,5 +1,5 @@
-import { SuppliersModule } from "@/modules/inventory/SuppliersModule";
+import { redirect } from "next/navigation";
 
-export default function SuppliersPage() {
-  return <SuppliersModule />;
+export default function SuppliersRedirect() {
+  redirect("/purchases/suppliers");
 }

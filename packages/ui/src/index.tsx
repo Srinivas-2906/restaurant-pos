@@ -2,8 +2,14 @@ import React from "react";
 
 export * from "./tokens";
 export * from "./utils";
+export * from "./brand";
+export { KaanaLogo, KaanaBrand } from "./components/KaanaLogo";
+export type { KaanaLogoSize } from "./components/KaanaLogo";
+export { StaffLoginForm } from "./components/StaffLoginForm";
+export type { StaffLoginAccent } from "./components/StaffLoginForm";
 export { SyncBadge, TableCard, MenuItemGrid, OrderCart, KOTPreviewCard } from "./components/pos";
-export { KOTCard, AggregatedItemRow, StationSelector } from "./components/kds";
+export { KOTCard, AggregatedItemRow, StationSelector, KDSBoard, TableKOTCard, TableTicketTile, groupKotsByTable } from "./components/kds";
+export type { KdsQueueItem, TableKOTGroup, TableOrderSection, KdsBoardFilter } from "./components/kds";
 export { OutletHealthCard, MarginAlertCard, RecommendationCard, DeviceHealthRow } from "./components/owner";
 
 export function Button({ children, onClick, variant = "primary", disabled, className = "", size = "md" }: {
@@ -59,3 +65,5 @@ export function StatCard({ label, value, sub, trend }: { label: string; value: s
 }
 
 export { formatCurrency, TABLE_STATUS_COLORS } from "./utils";
+export { AppToaster, notify, notifyOrderUpdate } from "./notifications";
+export type { NotifyType, ToastItem, OrderUpdatePayload, NotifyAppRole } from "./notifications";

@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { OutletsService } from "./outlets.service";
-import { JwtAuthGuard } from "../auth/guards";
+import { JwtAuthGuard, Roles } from "../auth/guards";
 
 @ApiTags("outlets")
 @Controller("outlets")
@@ -21,8 +21,21 @@ export class OutletsController {
   }
 
   @Post()
+  @Roles("owner")
   create(@Body() body: Record<string, unknown>) {
     return this.outletsService.create(body as never);
+  }
+
+  @Patch(":id")
+  @Roles("owner")
+  update(@Param("id") id: string, @Body() body: Record<string, unknown>) {
+    return this.outletsService.update(id, body as never);
+  }
+
+  @Delete(":id")
+  @Roles("owner")
+  remove(@Param("id") id: string) {
+    return this.outletsService.softDelete(id);
   }
 
   @Get(":id/floor")

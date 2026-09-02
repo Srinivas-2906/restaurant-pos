@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, hub } from "@/lib/api";
+import { api, hub, HUB_URL } from "@/lib/api";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { PageContent } from "@/components/shell/PageContent";
 import { Panel } from "@/components/ui/Panel";
@@ -33,7 +33,7 @@ export function SupportModule() {
         ) : hubOnline ? (
           <div className="flex items-center justify-between">
             <p className="text-green-700 font-medium">Local hub is online</p>
-            <Link href="http://localhost:4100/status" target="_blank" className="text-sm text-kaana hover:underline">
+            <Link href={`${HUB_URL}/status`} target="_blank" className="text-sm text-kaana hover:underline">
               Open diagnostics
             </Link>
           </div>

@@ -1,24 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getUser, getOutletId, setSelectedOutletId } from "@/lib/api";
+import { getUser, getOutletId, setSelectedOutletId, loadOrganizationOutlets, type OutletSummary } from "@/lib/api";
 
 export function OutletSelector() {
-  const user = getUser();
+  const [mounted, setMounted] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [outletId, setOutletId] = useState<string>("");
-  const outlets = user?.roles?.filter((r) => r.outletId).map((r) => r.outletId!) ?? [];
-  const uniqueOutlets = [...new Set(outlets)];
+  const [outlets, setOutlets] = useState<OutletSummary[]>([]);
 
   useEffect(() => {
-    const current = getOutletId();
-    if (current) setOutletId(current);
-    else if (uniqueOutlets[0]) {
-      setSelectedOutletId(uniqueOutlets[0]);
-      setOutletId(uniqueOutlets[0]);
-    }
-  }, [uniqueOutlets]);
+    const user = getUser();
+    setIsOwner(user?.roles?.some((r) => r.role === "owner") ?? false);
+    loadOrganizationOutlets()
+      .then((list) => {
+        setOutlets(list);
+        const current = getOutletId();
+        if (current && list.some((o) => o.id === current)) {
+          setOutletId(current);
+        } else if (list[0]) {
+          setSelectedOutletId(list[0].id);
+          setOutletId(list[0].id);
+        }
+      })
+      .catch(() => {});
+    setMounted(true);
+  }, []);
 
-  if (uniqueOutlets.length <= 1) return null;
+  if (!mounted) return null;
+  if (!isOwner && outlets.length <= 1) return null;
+  if (outlets.length === 0) return null;
 
   return (
     <select
@@ -28,10 +39,13 @@ export function OutletSelector() {
         setOutletId(e.target.value);
         window.location.reload();
       }}
-      className="text-sm border rounded-lg px-2 py-1"
+      className="text-sm border rounded-lg px-2 py-1 max-w-[200px] truncate"
+      aria-label="Select outlet"
     >
-      {uniqueOutlets.map((id) => (
-        <option key={id} value={id}>Outlet {id.slice(-6)}</option>
+      {outlets.map((o) => (
+        <option key={o.id} value={o.id}>
+          {o.name}
+        </option>
       ))}
     </select>
   );

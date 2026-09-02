@@ -1,9 +1,10 @@
 {
   "expo": {
-    "name": "Kaana Captain",
+    "name": "Kaana Kitchens Captain",
     "slug": "kaana-captain",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/kaana-logo.png",
     "scheme": "kaana-captain",
     "platforms": ["ios", "android"],
     "plugins": ["expo-router"]

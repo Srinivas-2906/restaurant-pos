@@ -15,6 +15,8 @@ export interface NavItem {
   icon?: string;
   /** Opens in POS app (localhost:3001) with auth handoff */
   externalPos?: boolean;
+  /** Opens in Reservations app (localhost:3006) with auth handoff */
+  externalReservations?: boolean;
 }
 
 export interface OperationsModule {
@@ -24,22 +26,53 @@ export interface OperationsModule {
   roles: UserRole[];
   /** Prefix match for route guard */
   pathPrefix: string;
+  externalReservations?: boolean;
 }
 
-export const OPERATIONS_WEB_URL = "http://localhost:3010";
-export const HQ_ADMIN_URL = "http://localhost:3000";
-export const POS_WEB_URL = "http://localhost:3001";
-export const KDS_WEB_URL = "http://localhost:3002";
+function publicUrl(value: string | undefined, fallback: string): string {
+  const raw = (value ?? "").trim();
+  return raw ? raw.replace(/\/+$/, "") : fallback;
+}
 
-/** Single sign-in portal for all restaurant staff */
+export const OPERATIONS_WEB_URL = publicUrl(process.env.NEXT_PUBLIC_OPERATIONS_WEB_URL, "http://localhost:3010");
+export const HQ_ADMIN_URL = publicUrl(process.env.NEXT_PUBLIC_HQ_ADMIN_URL, "http://localhost:3000");
+export const POS_WEB_URL = publicUrl(process.env.NEXT_PUBLIC_POS_WEB_URL, "http://localhost:3001");
+export const KDS_WEB_URL = publicUrl(process.env.NEXT_PUBLIC_KDS_WEB_URL, "http://localhost:3002");
+export const CAPTAIN_WEB_URL = publicUrl(process.env.NEXT_PUBLIC_CAPTAIN_WEB_URL, "http://localhost:3003");
+export const RESERVATIONS_WEB_URL = publicUrl(process.env.NEXT_PUBLIC_RESERVATIONS_WEB_URL, "http://localhost:3006");
+
+/** @deprecated Use getAppLoginUrl("operations") — each staff app has its own login page. */
 export const LOGIN_PORTAL_URL = OPERATIONS_WEB_URL;
+
+export type StaffAppId = "operations" | "pos" | "kds" | "captain";
+
+const APP_LOGIN_BASE: Record<StaffAppId, string> = {
+  operations: OPERATIONS_WEB_URL,
+  pos: POS_WEB_URL,
+  kds: KDS_WEB_URL,
+  captain: CAPTAIN_WEB_URL,
+};
+
+export function getAppLoginUrl(app: StaffAppId, returnTo?: string): string {
+  const base = APP_LOGIN_BASE[app];
+  if (!returnTo) return base;
+  return `${base}/?returnTo=${encodeURIComponent(returnTo)}`;
+}
 
 /** Owner / back-office console (operations-web) */
 export const OPERATIONS_MODULES: OperationsModule[] = [
   { id: "overview", label: "Overview", href: "/overview", roles: ["owner", "manager"], pathPrefix: "/overview" },
+  { id: "live-orders", label: "Live Orders", href: "/live-orders", roles: ["owner", "manager"], pathPrefix: "/live-orders" },
   { id: "orders", label: "Orders", href: "/orders", roles: ["owner", "manager"], pathPrefix: "/orders" },
+  {
+    id: "reservations",
+    label: "Reservations",
+    href: "/reservations",
+    roles: ["owner", "manager"],
+    pathPrefix: "/reservations",
+  },
   { id: "menu", label: "Menu", href: "/menu", roles: ["owner", "manager"], pathPrefix: "/menu" },
-  { id: "payroll", label: "Payroll", href: "/finance/payroll", roles: ["owner", "accountant"], pathPrefix: "/finance/payroll" },
+  { id: "payroll", label: "Payroll", href: "/payroll", roles: ["owner", "accountant"], pathPrefix: "/payroll" },
   { id: "finance", label: "Finance", href: "/finance", roles: ["owner"], pathPrefix: "/finance" },
   { id: "staff", label: "Staff", href: "/staff", roles: ["owner", "manager"], pathPrefix: "/staff" },
   { id: "customers", label: "Customers", href: "/customers", roles: ["owner", "manager"], pathPrefix: "/customers" },
@@ -60,6 +93,9 @@ export const OPERATIONS_MODULES: OperationsModule[] = [
 /** POS counter app modules (inventory lives here) */
 export const POS_MODULES: OperationsModule[] = [
   { id: "floor", label: "Counter", href: "/floor", roles: ["biller", "manager"], pathPrefix: "/floor" },
+  { id: "inbox", label: "Online Orders", href: "/inbox", roles: ["biller", "manager"], pathPrefix: "/inbox" },
+  { id: "takeaway", label: "Takeaway", href: "/takeaway", roles: ["biller", "manager"], pathPrefix: "/takeaway" },
+  { id: "delivery", label: "Delivery", href: "/delivery", roles: ["biller", "manager"], pathPrefix: "/delivery" },
   { id: "inventory", label: "Inventory", href: "/inventory", roles: ["biller", "inventory_manager", "manager"], pathPrefix: "/inventory" },
   { id: "purchases", label: "Purchases", href: "/purchases", roles: ["biller", "inventory_manager", "manager"], pathPrefix: "/purchases" },
 ];
@@ -68,7 +104,7 @@ export const POS_MODULES: OperationsModule[] = [
 export const OPERATIONS_ENTRY: Partial<Record<UserRole, string>> = {
   owner: "/overview",
   manager: "/overview",
-  accountant: "/finance/payroll",
+  accountant: "/payroll",
 };
 
 /** Default entry route per role within POS */
@@ -89,7 +125,7 @@ export interface RoleShell {
 export const ROLE_SHELLS: Record<UserRole, RoleShell> = {
   super_admin: {
     role: "super_admin",
-    appName: "Kaana Platform Admin",
+    appName: "Kaana Kitchens Platform Admin",
     entryRoute: "/dashboard",
     nav: [
       { id: "dashboard", label: "Dashboard", href: "/dashboard" },
@@ -101,42 +137,44 @@ export const ROLE_SHELLS: Record<UserRole, RoleShell> = {
   },
   owner: {
     role: "owner",
-    appName: "Kaana Owner Console",
+    appName: "Kaana Kitchens Owner Console",
     entryRoute: "/overview",
     nav: [],
     allowedApiPrefixes: ["/api"],
   },
   manager: {
     role: "manager",
-    appName: "Kaana Owner Console",
+    appName: "Kaana Kitchens Owner Console",
     entryRoute: "/overview",
     nav: [],
     allowedApiPrefixes: ["/api/orders", "/api/reservations", "/api/approvals", "/api/devices", "/api/staff"],
   },
   biller: {
     role: "biller",
-    appName: "Kaana POS",
+    appName: "Kaana Kitchens POS",
     entryRoute: "/floor",
     nav: [
       { id: "floor", label: "Counter", href: "/floor" },
+      { id: "inbox", label: "Online Orders", href: "/inbox" },
+      { id: "takeaway", label: "Takeaway", href: "/takeaway" },
+      { id: "delivery", label: "Delivery", href: "/delivery" },
       { id: "inventory", label: "Inventory", href: "/inventory" },
       { id: "purchases", label: "Purchases", href: "/purchases" },
     ],
-    allowedApiPrefixes: ["/api/orders", "/api/menu", "/api/inventory", "/api/staff", "/hub"],
+    allowedApiPrefixes: ["/api/orders", "/api/menu", "/api/inventory", "/api/staff", "/api/reservations", "/api/waitlist", "/hub"],
   },
   captain: {
     role: "captain",
-    appName: "Kaana Captain",
+    appName: "Kaana Kitchens Captain",
     entryRoute: "/floor",
     nav: [
       { id: "floor", label: "Tables", href: "/floor" },
-      { id: "reservations", label: "Reservations", href: "/reservations" },
     ],
     allowedApiPrefixes: ["/hub/orders", "/hub/tables", "/hub/menu"],
   },
   chef: {
     role: "chef",
-    appName: "Kaana KDS",
+    appName: "Kaana Kitchens KDS",
     entryRoute: "/station",
     nav: [
       { id: "board", label: "Ticket Board", href: "/board" },
@@ -147,7 +185,7 @@ export const ROLE_SHELLS: Record<UserRole, RoleShell> = {
   },
   inventory_manager: {
     role: "inventory_manager",
-    appName: "Kaana POS",
+    appName: "Kaana Kitchens POS",
     entryRoute: "/inventory",
     nav: [
       { id: "inventory", label: "Inventory", href: "/inventory" },
@@ -157,8 +195,8 @@ export const ROLE_SHELLS: Record<UserRole, RoleShell> = {
   },
   accountant: {
     role: "accountant",
-    appName: "Kaana Owner Console",
-    entryRoute: "/finance/payroll",
+    appName: "Kaana Kitchens Owner Console",
+    entryRoute: "/payroll",
     nav: [],
     allowedApiPrefixes: ["/api/reports", "/api/payroll"],
   },
@@ -169,7 +207,7 @@ export const APP_URLS: Record<UserRole, string> = {
   owner: OPERATIONS_WEB_URL,
   manager: OPERATIONS_WEB_URL,
   biller: POS_WEB_URL,
-  captain: "http://localhost:8081",
+  captain: CAPTAIN_WEB_URL,
   chef: KDS_WEB_URL,
   inventory_manager: POS_WEB_URL,
   accountant: OPERATIONS_WEB_URL,
@@ -201,6 +239,13 @@ export function getNavForRoles(roles: UserRole[]): NavItem[] {
       }
       continue;
     }
+    if (mod.externalReservations) {
+      if (mod.roles.some((r) => roles.includes(r)) && !seen.has(mod.id)) {
+        seen.add(mod.id);
+        items.push({ id: mod.id, label: mod.label, href: mod.href, externalReservations: true });
+      }
+      continue;
+    }
     if (mod.roles.some((r) => roles.includes(r)) && !seen.has(mod.id)) {
       seen.add(mod.id);
       items.push({ id: mod.id, label: mod.label, href: mod.href });
@@ -210,6 +255,9 @@ export function getNavForRoles(roles: UserRole[]): NavItem[] {
 }
 
 export function getPosNavForRoles(roles: UserRole[]): NavItem[] {
+  if (roles.includes("owner")) {
+    return POS_MODULES.map((m) => ({ id: m.id, label: m.label, href: m.href }));
+  }
   const seen = new Set<string>();
   const items: NavItem[] = [];
   for (const mod of POS_MODULES) {
@@ -221,6 +269,13 @@ export function getPosNavForRoles(roles: UserRole[]): NavItem[] {
   return items;
 }
 
+/** Fallback route when POS access is denied (stay inside POS, not owner console). */
+export function getPosDeniedRedirect(primary: UserRole): string {
+  if (usesPosApp(primary)) return POS_ENTRY[primary] ?? "/floor";
+  if (primary === "manager" || primary === "owner") return "/floor";
+  return getAppEntryForRole(primary);
+}
+
 export function canAccessRoute(roles: UserRole[], pathname: string): boolean {
   if (roles.includes("owner")) return true;
   if (pathname.startsWith("/inventory") || pathname.startsWith("/purchases")) {
@@ -229,6 +284,7 @@ export function canAccessRoute(roles: UserRole[], pathname: string): boolean {
   return OPERATIONS_MODULES.some(
     (m) =>
       m.id !== "pos_store" &&
+      !m.externalReservations &&
       m.roles.some((r) => roles.includes(r)) &&
       (pathname === m.pathPrefix || pathname.startsWith(`${m.pathPrefix}/`)),
   );
@@ -302,9 +358,12 @@ export function buildPosLink(path: string, handoff: AuthHandoffPayload): string 
   return buildRedirectWithAuth(POS_WEB_URL, path, handoff);
 }
 
+export function buildReservationsLink(path: string, handoff: AuthHandoffPayload): string {
+  return buildRedirectWithAuth(RESERVATIONS_WEB_URL, path, handoff);
+}
+
 export function getLoginPortalUrl(returnTo?: string): string {
-  if (!returnTo) return LOGIN_PORTAL_URL;
-  return `${LOGIN_PORTAL_URL}/?returnTo=${encodeURIComponent(returnTo)}`;
+  return getAppLoginUrl("operations", returnTo);
 }
 
 /** Apply auth tokens passed from the unified login portal (client-side only). */

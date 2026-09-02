@@ -1,5 +1,5 @@
-import { NewPOModule } from "@/modules/inventory/PurchasesModule";
+import { redirect } from "next/navigation";
 
-export default function NewPurchasePage() {
-  return <NewPOModule />;
+export default function NewPORedirect() {
+  redirect("/purchases/orders");
 }

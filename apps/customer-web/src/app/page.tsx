@@ -9,6 +9,21 @@ const DEMO_MENU = [
   { id: "3", name: "Butter Naan", price: 59, isVeg: true },
 ];
 
+function BrandMark({ label }: { label?: string }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: "inline-flex", background: "#000", borderRadius: 12, padding: "8px 14px" }}>
+        <img src="/kaana-logo.png" alt="Kaana Kitchens" style={{ height: 40, width: "auto", maxWidth: "100%", objectFit: "contain" }} />
+      </div>
+      {label && (
+        <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b7280", margin: "8px 0 0" }}>
+          {label}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function MenuPage() {
   const [cart, setCart] = useState<Array<{ id: string; name: string; price: number; qty: number }>>([]);
   const [step, setStep] = useState<"menu" | "pay" | "status">("menu");
@@ -25,10 +40,20 @@ export default function MenuPage() {
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
 
+  const shellStyle: React.CSSProperties = {
+    maxWidth: 480,
+    margin: "0 auto",
+    padding: "16px 16px 96px",
+    minHeight: "100dvh",
+    overflowX: "clip",
+    width: "100%",
+    boxSizing: "border-box",
+  };
+
   if (step === "status") {
     return (
-      <main style={{ maxWidth: 480, margin: "0 auto", padding: 24 }}>
-        <h1>Order Status — Q3</h1>
+      <main style={shellStyle}>
+        <h1 style={{ fontSize: "1.25rem", margin: 0 }}>Order Status — Q3</h1>
         <p style={{ color: "#22c55e", fontWeight: "bold" }}>Preparing your order...</p>
         <button onClick={() => setStep("menu")} style={{ marginTop: 24 }}>Order again</button>
       </main>
@@ -37,10 +62,13 @@ export default function MenuPage() {
 
   if (step === "pay") {
     return (
-      <main style={{ maxWidth: 480, margin: "0 auto", padding: 24 }}>
-        <h1>Pay — Q2</h1>
+      <main style={shellStyle}>
+        <h1 style={{ fontSize: "1.25rem", margin: 0 }}>Pay — Q2</h1>
         <p style={{ fontSize: 24, fontWeight: "bold" }}>{formatCurrency(total)}</p>
-        <button onClick={() => setStep("status")} style={{ width: "100%", padding: 16, background: "#ea580c", color: "#fff", border: "none", borderRadius: 8, marginTop: 16 }}>
+        <button
+          onClick={() => setStep("status")}
+          style={{ width: "100%", padding: 16, background: "#111", color: "#fff", border: "none", borderRadius: 12, marginTop: 16 }}
+        >
           Pay via UPI
         </button>
       </main>
@@ -48,16 +76,30 @@ export default function MenuPage() {
   }
 
   return (
-    <main style={{ maxWidth: 480, margin: "0 auto", padding: 16 }}>
-      <h1 style={{ color: "#ea580c" }}>Kaana Foods</h1>
-      <p style={{ color: "#666" }}>Table T5 · Scan to order</p>
+    <main style={shellStyle}>
+      <BrandMark label="Order at Table" />
+      <p style={{ color: "#666", margin: "0 0 16px" }}>Table T5 · Scan to order</p>
       <script src="https://cdn.tailwindcss.com"></script>
-      <div className="mt-4">
+      <div style={{ minWidth: 0 }}>
         <MenuItemGrid items={DEMO_MENU} onSelect={addItem} />
       </div>
       {cart.length > 0 && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", padding: 16, borderTop: "1px solid #eee" }}>
-          <button onClick={() => setStep("pay")} style={{ width: "100%", padding: 16, background: "#ea580c", color: "#fff", border: "none", borderRadius: 8 }}>
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: "#fff",
+            padding: "12px 16px calc(12px + env(safe-area-inset-bottom))",
+            borderTop: "1px solid #eee",
+            boxSizing: "border-box",
+          }}
+        >
+          <button
+            onClick={() => setStep("pay")}
+            style={{ width: "100%", padding: 16, background: "#111", color: "#fff", border: "none", borderRadius: 12 }}
+          >
             View Cart ({cart.length}) — {formatCurrency(total)}
           </button>
         </div>

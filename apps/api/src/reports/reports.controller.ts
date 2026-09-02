@@ -16,6 +16,16 @@ export class ReportsController {
     return this.reportsService.salesReport(outletId, from, to);
   }
 
+  @Get("sales/daily")
+  @Roles("accountant", "owner", "manager")
+  salesDaily(
+    @Query("outletId") outletId: string,
+    @Query("from") from: string,
+    @Query("to") to: string,
+  ) {
+    return this.reportsService.salesDailyBreakdown(outletId, from, to);
+  }
+
   @Get("items")
   @Roles("accountant", "owner", "manager")
   items(@Query("outletId") outletId: string, @Query("from") from: string, @Query("to") to: string) {
@@ -44,6 +54,32 @@ export class ReportsController {
   @Roles("accountant", "owner", "inventory_manager")
   wastage(@Query("outletId") outletId: string, @Query("from") from: string, @Query("to") to: string) {
     return this.reportsService.wastageReport(outletId, from, to);
+  }
+
+  @Get("inventory/consumption")
+  @Roles("accountant", "owner", "inventory_manager")
+  consumption(
+    @Query("outletId") outletId: string,
+    @Query("from") from: string,
+    @Query("to") to: string,
+  ) {
+    return this.reportsService.consumptionReport(outletId, from, to);
+  }
+
+  @Get("inventory/food-cost")
+  @Roles("accountant", "owner", "manager")
+  foodCost(
+    @Query("outletId") outletId: string,
+    @Query("from") from: string,
+    @Query("to") to: string,
+  ) {
+    return this.reportsService.foodCostReport(outletId, from, to);
+  }
+
+  @Get("inventory/suppliers")
+  @Roles("accountant", "owner", "inventory_manager")
+  supplierPerformance(@Query("outletId") outletId: string) {
+    return this.reportsService.supplierPerformanceReport(outletId);
   }
 
   @Get("reconciliation")

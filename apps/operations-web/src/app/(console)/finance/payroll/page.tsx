@@ -1,5 +1,5 @@
-import { PayrollModule } from "@/modules/finance/FinanceModule";
+import { redirect } from "next/navigation";
 
-export default function PayrollPage() {
-  return <PayrollModule />;
+export default function LegacyPayrollRedirect() {
+  redirect("/payroll/runs");
 }

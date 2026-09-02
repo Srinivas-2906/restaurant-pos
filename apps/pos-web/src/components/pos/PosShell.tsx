@@ -1,27 +1,66 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { getPosNavForRoles, LOGIN_PORTAL_URL, OPERATIONS_WEB_URL, resolveAllRoles, resolvePrimaryRole } from "@kaana/role-shells";
-import { getUser, logout } from "@/lib/api";
+import { KaanaBrand } from "@kaana/ui";
+import { getPosNavForRoles, OPERATIONS_WEB_URL, resolveAllRoles, resolvePrimaryRole, type UserRole } from "@kaana/role-shells";
+import {
+  api,
+  fetchTerminalMe,
+  getAuthMode,
+  getOperationalStaff,
+  getTerminalCredential,
+  getUser,
+  getOutletId,
+  logoutSession,
+} from "@/lib/api";
 
 export function PosShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const user = getUser();
-  const roles = user ? resolveAllRoles(user) : [];
+  const operationalStaff = getOperationalStaff();
+  const authMode = getAuthMode();
+  const roles: UserRole[] = user
+    ? resolveAllRoles(user)
+    : operationalStaff
+      ? [operationalStaff.role as UserRole]
+      : [];
   const nav = getPosNavForRoles(roles);
-  const primary = user ? resolvePrimaryRole(user) : "biller";
+  const primary = user ? resolvePrimaryRole(user) : operationalStaff?.role ?? "biller";
   const showOwnerLink = primary === "owner" || primary === "manager";
+  const [outletName, setOutletName] = useState("");
+  const [terminalLabel, setTerminalLabel] = useState("Counter terminal");
+  const actingName =
+    operationalStaff?.displayName ??
+    (user ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "Staff");
+
+  useEffect(() => {
+    const outletId = getOutletId();
+    if (outletId) {
+      api<{ name: string }>(`/outlets/${outletId}`)
+        .then((o) => setOutletName(o.name))
+        .catch(() => setOutletName(""));
+    }
+
+    const credential = getTerminalCredential();
+    if (credential) {
+      fetchTerminalMe()
+        .then((terminal) => setTerminalLabel(`${terminal.name} (${terminal.code})`))
+        .catch(() => setTerminalLabel("Counter terminal"));
+    }
+  }, []);
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
-      <header className="bg-sidebar text-white px-4 py-2.5 flex items-center justify-between gap-4 border-b border-white/10 shrink-0">
+    <div className="min-h-dvh bg-surface flex flex-col pb-[env(safe-area-inset-bottom)]">
+      <header className="bg-sidebar text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 pt-[max(0.625rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-5 min-w-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center font-bold text-sm">K</div>
-            <div>
-              <p className="font-semibold text-sm leading-tight">Kaana POS</p>
-              <p className="text-white/50 text-[11px]">Counter terminal</p>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <KaanaBrand size="xs" appLabel="POS · Billing" />
+            <div className="hidden sm:block min-w-0">
+              <p className="text-white/50 text-[11px] truncate">
+                {outletName ? `${outletName} · ${terminalLabel}` : terminalLabel}
+              </p>
             </div>
           </div>
           <nav className="hidden sm:flex items-center gap-1">
@@ -41,19 +80,17 @@ export function PosShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm shrink-0">
-          {showOwnerLink && (
+          {showOwnerLink && authMode === "email" && (
             <a href={OPERATIONS_WEB_URL + "/overview"} className="text-white/70 hover:text-white hidden md:inline">
               Owner console →
             </a>
           )}
-          <span className="text-white/80 hidden md:inline">
-            {user?.firstName} {user?.lastName}
-          </span>
+          <span className="text-white/80 hidden md:inline">{actingName}</span>
           <button
             type="button"
             onClick={() => {
-              logout();
-              window.location.href = LOGIN_PORTAL_URL;
+              logoutSession();
+              window.location.href = "/";
             }}
             className="text-white/60 hover:text-white text-xs border border-white/20 rounded-lg px-2 py-1"
           >
@@ -61,6 +98,7 @@ export function PosShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
+      <div className="h-1 bg-gradient-to-r from-kaana via-orange-500 to-kaana-dark shrink-0" aria-hidden />
       <div className="sm:hidden flex gap-1 px-2 py-2 bg-white border-b overflow-x-auto">
         {nav.map((item) => (
           <Link

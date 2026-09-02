@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   ShoppingBag,
+  CalendarDays,
   UtensilsCrossed,
   Package,
   Truck,
@@ -17,7 +18,9 @@ import {
 
 export const MODULE_ICONS: Record<string, LucideIcon> = {
   overview: LayoutDashboard,
+  "live-orders": ShoppingBag,
   orders: ShoppingBag,
+  reservations: CalendarDays,
   menu: UtensilsCrossed,
   inventory: Package,
   purchases: Truck,

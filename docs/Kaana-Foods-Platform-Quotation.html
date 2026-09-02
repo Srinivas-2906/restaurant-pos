@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kaana Foods — Platform Quotation</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 2cm 2.2cm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Segoe UI", Calibri, Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.55;
+      color: #1a1a1a;
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 24px 32px 48px;
+      background: #fff;
+    }
+
+    .cover {
+      border-bottom: 3px solid #c45c26;
+      padding-bottom: 28px;
+      margin-bottom: 32px;
+    }
+
+    .brand {
+      font-size: 28pt;
+      font-weight: 700;
+      color: #c45c26;
+      letter-spacing: -0.5px;
+      margin: 0 0 4px;
+    }
+
+    .tagline {
+      font-size: 10pt;
+      color: #666;
+      margin: 0 0 24px;
+    }
+
+    .doc-title {
+      font-size: 18pt;
+      font-weight: 600;
+      color: #222;
+      margin: 0 0 20px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 32px;
+      font-size: 10.5pt;
+    }
+
+    .meta-grid dt {
+      font-weight: 600;
+      color: #444;
+      margin: 0;
+    }
+
+    .meta-grid dd {
+      margin: 0 0 8px;
+      color: #222;
+    }
+
+    h2 {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #c45c26;
+      border-bottom: 1.5px solid #e8ddd6;
+      padding-bottom: 6px;
+      margin: 32px 0 14px;
+      page-break-after: avoid;
+    }
+
+    h3 {
+      font-size: 11.5pt;
+      font-weight: 600;
+      color: #333;
+      margin: 22px 0 10px;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin: 0 0 12px;
+      text-align: justify;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 20px;
+      font-size: 10pt;
+      page-break-inside: avoid;
+    }
+
+    th {
+      background: #f5f0ec;
+      color: #333;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+    }
+
+    td {
+      padding: 7px 10px;
+      border: 1px solid #ddd;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    .col-num { width: 5%; text-align: center; }
+    .col-feature { width: 22%; }
+    .col-desc { width: 73%; }
+
+    .pricing-table th:last-child,
+    .pricing-table td:last-child {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .pricing-table .subtotal td {
+      font-weight: 700;
+      background: #f5f0ec;
+    }
+
+    .highlight-box {
+      background: #fdf8f5;
+      border-left: 4px solid #c45c26;
+      padding: 14px 18px;
+      margin: 16px 0 24px;
+    }
+
+    .highlight-box p {
+      margin: 0;
+    }
+
+    .status-ready { color: #1a7f37; font-weight: 600; }
+    .status-progress { color: #9a6700; font-weight: 600; }
+    .status-demo { color: #666; font-weight: 600; }
+
+    .terms ol {
+      margin: 0;
+      padding-left: 22px;
+    }
+
+    .terms li {
+      margin-bottom: 8px;
+    }
+
+    .signature-block {
+      margin-top: 40px;
+      page-break-inside: avoid;
+    }
+
+    .signature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-top: 24px;
+    }
+
+    .sig-line {
+      border-bottom: 1px solid #333;
+      height: 32px;
+      margin-bottom: 6px;
+    }
+
+    .sig-label {
+      font-size: 9.5pt;
+      color: #555;
+    }
+
+    .footer-note {
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid #ddd;
+      font-size: 9.5pt;
+      color: #666;
+      text-align: center;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    @media print {
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER -->
+  <header class="cover">
+    <p class="brand">Kaana Foods</p>
+    <p class="tagline">Restaurant Management Platform — India-first, enterprise-grade</p>
+    <h1 class="doc-title">Platform Quotation &amp; Feature Scope</h1>
+    <dl class="meta-grid">
+      <dt>Prepared for</dt>
+      <dd>[Client Name / Restaurant Group]</dd>
+      <dt>Prepared by</dt>
+      <dd>Kaana Foods</dd>
+      <dt>Date</dt>
+      <dd>6 August 2026</dd>
+      <dt>Quote Reference</dt>
+      <dd>KF-2026-001</dd>
+      <dt>Valid Until</dt>
+      <dd>6 September 2026</dd>
+      <dt>Contact</dt>
+      <dd>[your-email@kaanafoods.com] &nbsp;|&nbsp; [+91 XXXXX XXXXX]</dd>
+    </dl>
+  </header>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <section>
+    <h2>1. Executive Summary</h2>
+    <p>
+      Kaana Foods is an India-first, enterprise-grade restaurant management platform designed for
+      multi-outlet brands, cloud kitchens, and full-service restaurants. The platform covers the complete
+      operational lifecycle — floor service, kitchen operations, billing, inventory, procurement, human
+      resources, payroll, reservations, analytics, and third-party aggregator integrations.
+    </p>
+    <div class="highlight-box">
+      <p>
+        <strong>Scope of this quotation:</strong> Platform licensing, implementation, staff training,
+        and ongoing support for <strong>[X outlets / Y terminals]</strong>. All pricing figures below
+        are indicative templates and should be finalised based on client configuration.
+      </p>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section>
+    <h2>2. Feature Scope</h2>
+
+    <h3>A. Platform &amp; Core Infrastructure</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>A1</td><td>Multi-tenant organization management</td><td>Brand and organization hierarchy for groups operating multiple concepts</td></tr>
+        <tr><td>A2</td><td>Multi-outlet management</td><td>Create and manage outlets, floor plans, tables, terminals, and kitchen stations</td></tr>
+        <tr><td>A3</td><td>Unified authentication &amp; RBAC</td><td>Single sign-on with role-based access: Owner, Manager, Biller, Captain, Chef, Inventory Manager, Accountant</td></tr>
+        <tr><td>A4</td><td>Unified operations portal</td><td>One login portal routing staff to the correct application by role</td></tr>
+        <tr><td>A5</td><td>User &amp; staff account management</td><td>Staff accounts, role assignments, and outlet-level permissions</td></tr>
+        <tr><td>A6</td><td>Audit logging</td><td>Immutable activity trail for compliance and dispute resolution</td></tr>
+        <tr><td>A7</td><td>Device registration &amp; monitoring</td><td>POS, KDS, and captain device tracking with sync health monitoring</td></tr>
+        <tr><td>A8</td><td>Offline-first architecture</td><td>Local outlet hub with cloud sync and conflict resolution</td></tr>
+        <tr><td>A9</td><td>Real-time WebSocket updates</td><td>Live floor, kitchen, and reservation updates across all terminals</td></tr>
+        <tr><td>A10</td><td>Developer &amp; partner API</td><td>REST API, webhooks, SDK, and Swagger documentation</td></tr>
+        <tr><td>A11</td><td>Aggregator integration API</td><td>Swiggy/Zomato-style menu sync, order intake, and stock updates</td></tr>
+      </tbody>
+    </table>
+
+    <h3>B. Point of Sale (POS)</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>B1</td><td>Interactive floor plan</td><td>Color-coded table phases: free, ordering, kitchen, ready, serving, bill printed, reserved, cleaning, blocked</td></tr>
+        <tr><td>B2</td><td>Dine-in order management</td><td>Table orders with guest count, item cart, and modifications</td></tr>
+        <tr><td>B3</td><td>Takeaway counter</td><td>Non-table orders with customer name and phone capture</td></tr>
+        <tr><td>B4</td><td>Delivery counter</td><td>Delivery orders with address capture</td></tr>
+        <tr><td>B5</td><td>Menu browsing &amp; search</td><td>Category navigation, veg/non-veg indicators, and item search</td></tr>
+        <tr><td>B6</td><td>KOT firing</td><td>Send kitchen tickets to designated stations</td></tr>
+        <tr><td>B7</td><td>Kitchen timeline</td><td>Per-order item status tracking: cooking → ready → served</td></tr>
+        <tr><td>B8</td><td>Menu availability warnings</td><td>Recipe-based ingredient availability alerts at order time</td></tr>
+        <tr><td>B9</td><td>Proforma bill printing</td><td>Preview and print bill before settlement</td></tr>
+        <tr><td>B10</td><td>Payment &amp; settlement</td><td>Cash, UPI, and card payment processing</td></tr>
+        <tr><td>B11</td><td>Bill split</td><td>Split bills across multiple payment methods</td></tr>
+        <tr><td>B12</td><td>Order cancellation</td><td>Cancel open orders with full audit trail</td></tr>
+        <tr><td>B13</td><td>Staff clock in/out</td><td>Attendance capture directly from the POS terminal</td></tr>
+        <tr><td>B14</td><td>Reservation panel</td><td>View and assign reservations from the counter</td></tr>
+        <tr><td>B15</td><td>Aggregator order inbox</td><td>Incoming Swiggy/Zomato orders with SLA timer, accept/reject, and KOT fire</td></tr>
+        <tr><td>B16</td><td>POS Desktop (Electron)</td><td>Production offline-first counter application</td></tr>
+        <tr><td>B17</td><td>Day close / Z-report</td><td>End-of-day cash count, payment reconciliation, and Z-report generation</td></tr>
+        <tr><td>B18</td><td>Terminal diagnostics</td><td>Hub and printer health checks from counter</td></tr>
+        <tr><td>B19</td><td>KOT &amp; bill printing</td><td>ESC/POS kitchen tickets and GST-compliant bills</td></tr>
+        <tr><td>B20</td><td>POS inventory module</td><td>Stock, recipes, wastage, transfers, and purchase workflows at counter</td></tr>
+      </tbody>
+    </table>
+
+    <h3>C. Kitchen Display System (KDS)</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>C1</td><td>Ticket board (table-grouped)</td><td>KOTs grouped by table with bump workflow</td></tr>
+        <tr><td>C2</td><td>Table detail view</td><td>Drill-down into a single table's tickets</td></tr>
+        <tr><td>C3</td><td>Bump workflow</td><td>Mark tickets as Preparing / Ready</td></tr>
+        <tr><td>C4</td><td>Station queue</td><td>Per-station ticket queue management</td></tr>
+        <tr><td>C5</td><td>Aggregated rush view</td><td>Combined item counts across all active tickets</td></tr>
+        <tr><td>C6</td><td>86 / item unavailability</td><td>Mark menu items unavailable directly from kitchen</td></tr>
+        <tr><td>C7</td><td>Ticket recall</td><td>Recall bumped tickets when needed</td></tr>
+        <tr><td>C8</td><td>Real-time updates</td><td>WebSocket notifications with audio and visual alerts</td></tr>
+        <tr><td>C9</td><td>KDS Web &amp; Android</td><td>Browser and tablet kitchen display applications</td></tr>
+        <tr><td>C10</td><td>Offline KDS via hub</td><td>Local hub endpoints for uninterrupted kitchen operations</td></tr>
+      </tbody>
+    </table>
+
+    <h3>D. Captain / Waiter Applications</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>D1</td><td>Floor table map</td><td>Real-time table status with ready-item counts</td></tr>
+        <tr><td>D2</td><td>Ready-to-serve alerts</td><td>Push notifications when items are ready for service</td></tr>
+        <tr><td>D3</td><td>Table serve view</td><td>Item-level serve workflow: ready → served</td></tr>
+        <tr><td>D4</td><td>Mobile ordering (offline)</td><td>Take orders via local hub when cloud connectivity is unavailable</td></tr>
+        <tr><td>D5</td><td>Bill request</td><td>Request bill generation from captain device</td></tr>
+        <tr><td>D6</td><td>Captain Web &amp; Mobile</td><td>Web floor app and Expo mobile app for waitstaff</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page-break">
+    <h3>E. Operations &amp; Back Office</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>E1</td><td>Executive dashboard</td><td>Revenue, orders, floor status, low stock, attendance, and payroll alerts</td></tr>
+        <tr><td>E2</td><td>Revenue charts &amp; analytics</td><td>Daily trends, order status breakdown, and multi-outlet comparison</td></tr>
+        <tr><td>E3</td><td>Live floor monitor</td><td>Read-only table phase overview for managers</td></tr>
+        <tr><td>E4</td><td>Menu management</td><td>Categories, items, pricing, veg flags, tax rules, and outlet overrides</td></tr>
+        <tr><td>E5</td><td>Item availability (86)</td><td>Toggle item availability from back office</td></tr>
+        <tr><td>E6</td><td>Reservations management</td><td>Create, edit, check-in, seat, assign table, and open order from booking</td></tr>
+        <tr><td>E7</td><td>Waitlist management</td><td>Queue, notify, promote, reorder, and cancel walk-in guests</td></tr>
+        <tr><td>E8</td><td>Floor view with reservations</td><td>Visual floor plan with reservation overlay</td></tr>
+        <tr><td>E9</td><td>Public online booking</td><td>Guest-facing reservation form via customer web portal</td></tr>
+        <tr><td>E10</td><td>Sales reports</td><td>Daily sales, breakdown by source and payment method</td></tr>
+        <tr><td>E11</td><td>Item sales reports</td><td>Top and bottom performing menu items</td></tr>
+        <tr><td>E12</td><td>Inventory reports</td><td>Stock levels, value, low stock, wastage, and food cost analysis</td></tr>
+        <tr><td>E13</td><td>GST export</td><td>Tax filing data export for compliance</td></tr>
+        <tr><td>E14</td><td>Payment reconciliation</td><td>Collections vs expected settlement comparison</td></tr>
+        <tr><td>E15</td><td>CSV/JSON report export</td><td>Downloadable report bundles for external analysis</td></tr>
+        <tr><td>E16</td><td>Finance dashboard</td><td>Sales by source, payment method, and item-wise analysis</td></tr>
+        <tr><td>E17</td><td>Outlet &amp; device management</td><td>Outlet CRUD, outlet switching, and device health monitoring</td></tr>
+        <tr><td>E18</td><td>Support &amp; diagnostics</td><td>Hub status checks, support ticket creation and resolution</td></tr>
+        <tr><td>E19</td><td>Pending approvals</td><td>Manager approval queue for stock counts, corrections, and more</td></tr>
+      </tbody>
+    </table>
+
+    <h3>F. Inventory &amp; Procurement</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>F1</td><td>Inventory dashboard</td><td>Stock value, alerts, and daily closing snapshots</td></tr>
+        <tr><td>F2</td><td>Raw materials / ingredients</td><td>CRUD, categories, units, and reorder levels</td></tr>
+        <tr><td>F3</td><td>Recipes &amp; BOM</td><td>Item-to-ingredient recipes with versioning</td></tr>
+        <tr><td>F4</td><td>Stock ledger &amp; adjustments</td><td>Full movement history and manual corrections</td></tr>
+        <tr><td>F5</td><td>Daily stock closing</td><td>End-of-day stock snapshot and reconciliation</td></tr>
+        <tr><td>F6</td><td>Menu availability from stock</td><td>Can-produce check based on current inventory levels</td></tr>
+        <tr><td>F7</td><td>Supplier master</td><td>Vendor directory with item mapping</td></tr>
+        <tr><td>F8</td><td>Purchase orders</td><td>Create, send, receive, and cancel purchase orders</td></tr>
+        <tr><td>F9</td><td>Purchase requests &amp; GRN</td><td>Requisition workflow and goods receipt notes</td></tr>
+        <tr><td>F10</td><td>Purchase invoices &amp; returns</td><td>Vendor billing and return-to-supplier processing</td></tr>
+        <tr><td>F11</td><td>Stock counts</td><td>Physical count with manager approval workflow</td></tr>
+        <tr><td>F12</td><td>Wastage tracking</td><td>Log and value ingredient wastage</td></tr>
+        <tr><td>F13</td><td>Production orders</td><td>Central kitchen and prep production management</td></tr>
+        <tr><td>F14</td><td>Inter-outlet transfers</td><td>Central kitchen dispatch and receive between outlets</td></tr>
+        <tr><td>F15</td><td>Inventory alerts</td><td>Low stock and automated reorder suggestions</td></tr>
+        <tr><td>F16</td><td>Weighted average costing</td><td>Ingredient cost tracking with unit conversions</td></tr>
+      </tbody>
+    </table>
+
+    <h3>G. HR, Staff &amp; Payroll (India-compliant)</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>G1</td><td>Employee roster &amp; onboarding</td><td>Team list, add employee wizard, and full employee profiles</td></tr>
+        <tr><td>G2</td><td>Departments &amp; designations</td><td>HR master data management</td></tr>
+        <tr><td>G3</td><td>Shift scheduling &amp; roster</td><td>Shift templates and staff schedules</td></tr>
+        <tr><td>G4</td><td>Attendance tracking</td><td>Clock in/out, daily summary, and attendance history</td></tr>
+        <tr><td>G5</td><td>Attendance corrections</td><td>Fix missed punches with approval workflow</td></tr>
+        <tr><td>G6</td><td>Overtime requests</td><td>OT logging and manager approval</td></tr>
+        <tr><td>G7</td><td>Leave management</td><td>Leave requests, policies, balances, and holiday calendar</td></tr>
+        <tr><td>G8</td><td>Employee documents &amp; medical records</td><td>Document and health record tracking</td></tr>
+        <tr><td>G9</td><td>Training assignments</td><td>Assign and track training module completion</td></tr>
+        <tr><td>G10</td><td>Contractors &amp; contract workers</td><td>Third-party labour management</td></tr>
+        <tr><td>G11</td><td>Grievances &amp; POSH</td><td>Grievance cases and POSH committee management</td></tr>
+        <tr><td>G12</td><td>Tip pools &amp; distribution</td><td>Tip sharing and distribution among staff</td></tr>
+        <tr><td>G13</td><td>Staff self-service portal</td><td>Employee view of own HR data and requests</td></tr>
+        <tr><td>G14</td><td>Staff reports &amp; analytics</td><td>Labour cost, overtime risk, and compliance score</td></tr>
+        <tr><td>G15</td><td>Statutory compliance dashboard</td><td>PF, ESI, gratuity, and registration tracking</td></tr>
+        <tr><td>G16</td><td>Payroll runs</td><td>Create, approve, and mark payroll as paid</td></tr>
+        <tr><td>G17</td><td>Payslip generation</td><td>Individual payslips — printable and exportable</td></tr>
+        <tr><td>G18</td><td>Salary structures</td><td>Components, versions, and employee assignment</td></tr>
+        <tr><td>G19</td><td>Statutory deductions</td><td>PF, ESI, and gratuity enrollment and calculation</td></tr>
+        <tr><td>G20</td><td>Loans, advances, bonus &amp; incentives</td><td>Variable pay and employee loan management</td></tr>
+        <tr><td>G21</td><td>Final settlements</td><td>Full &amp; final settlement on employee exit</td></tr>
+        <tr><td>G22</td><td>Compliance calendar</td><td>Statutory filing deadline tracking and reminders</td></tr>
+      </tbody>
+    </table>
+
+    <h3>H. CRM &amp; Customer Engagement</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>H1</td><td>Customer directory</td><td>Search customers by phone and manage profiles</td></tr>
+        <tr><td>H2</td><td>Loyalty earn &amp; redeem</td><td>Points accumulation and redemption programme</td></tr>
+        <tr><td>H3</td><td>QR table ordering (PWA)</td><td>Guest self-order via table QR scan</td></tr>
+        <tr><td>H4</td><td>Public reservation booking</td><td>Online table booking for guests</td></tr>
+      </tbody>
+    </table>
+
+    <h3>I. Intelligence &amp; Profitability</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>I1</td><td>Order margin snapshots</td><td>Per-order profitability tracking</td></tr>
+        <tr><td>I2</td><td>Outlet margin dashboard</td><td>Average margin and loss-making order identification</td></tr>
+        <tr><td>I3</td><td>Item-level margins</td><td>Menu item profitability analysis</td></tr>
+        <tr><td>I4</td><td>AI recommendations</td><td>Demand forecast, prep plan, PO draft, shift suggestions, and price fixes</td></tr>
+        <tr><td>I5</td><td>Recommendation approval workflow</td><td>Approve/dismiss AI suggestions with outcome tracking</td></tr>
+      </tbody>
+    </table>
+
+    <h3>J. Franchise &amp; Food Safety</h3>
+    <table>
+      <thead>
+        <tr><th class="col-num">#</th><th class="col-feature">Feature</th><th class="col-desc">Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>J1</td><td>Franchise audits</td><td>Record and list outlet audits across the network</td></tr>
+        <tr><td>J2</td><td>SOP management</td><td>Standard operating procedure versioning</td></tr>
+        <tr><td>J3</td><td>Cross-outlet comparison</td><td>Franchise performance benchmarking</td></tr>
+        <tr><td>J4</td><td>Temperature logging</td><td>HACCP temperature records</td></tr>
+        <tr><td>J5</td><td>Cleaning schedules</td><td>Cleaning task management and tracking</td></tr>
+        <tr><td>J6</td><td>Training modules</td><td>Create and assign training content</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- QUOTATION -->
+  <section class="page-break">
+    <h2>3. Quotation</h2>
+
+    <h3>Option 1 — Starter (Single Outlet)</h3>
+    <table class="pricing-table">
+      <thead>
+        <tr><th>Line Item</th><th>Qty</th><th>Unit Price (₹)</th><th>Amount (₹)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Platform setup &amp; onboarding</td><td>1</td><td>25,000</td><td>25,000</td></tr>
+        <tr><td>POS Web + Desktop license (1 terminal)</td><td>1</td><td>—</td><td>Included</td></tr>
+        <tr><td>KDS license (1 station)</td><td>1</td><td>—</td><td>Included</td></tr>
+        <tr><td>Captain app license (2 devices)</td><td>2</td><td>—</td><td>Included</td></tr>
+        <tr><td>Operations console (Owner + Manager)</td><td>1</td><td>—</td><td>Included</td></tr>
+        <tr><td>Menu &amp; floor plan configuration</td><td>1</td><td>15,000</td><td>15,000</td></tr>
+        <tr><td>Staff training (2 sessions × 2 hrs)</td><td>1</td><td>10,000</td><td>10,000</td></tr>
+        <tr class="subtotal"><td colspan="3"><strong>One-time subtotal</strong></td><td><strong>50,000</strong></td></tr>
+        <tr><td>Monthly subscription (per outlet)</td><td>1</td><td>4,999/mo</td><td>4,999/mo</td></tr>
+        <tr><td>Annual subscription (prepaid — 2 months free)</td><td>1</td><td>49,990/yr</td><td>49,990/yr</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Option 2 — Professional (Multi-Outlet, up to 5 outlets)</h3>
+    <table class="pricing-table">
+      <thead>
+        <tr><th>Line Item</th><th>Qty</th><th>Unit Price (₹)</th><th>Amount (₹)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Platform setup &amp; onboarding</td><td>1</td><td>50,000</td><td>50,000</td></tr>
+        <tr><td>POS terminals (per terminal)</td><td>___</td><td>8,000</td><td>_______</td></tr>
+        <tr><td>KDS stations (per station)</td><td>___</td><td>5,000</td><td>_______</td></tr>
+        <tr><td>Captain devices (per device)</td><td>___</td><td>2,000</td><td>_______</td></tr>
+        <tr><td>Inventory &amp; procurement module</td><td>1</td><td>30,000</td><td>30,000</td></tr>
+        <tr><td>HR &amp; payroll module</td><td>1</td><td>40,000</td><td>40,000</td></tr>
+        <tr><td>Reservations &amp; waitlist module</td><td>1</td><td>15,000</td><td>15,000</td></tr>
+        <tr><td>Aggregator integration (Swiggy/Zomato)</td><td>1</td><td>25,000</td><td>25,000</td></tr>
+        <tr><td>Data migration (from existing system)</td><td>1</td><td>20,000</td><td>20,000</td></tr>
+        <tr><td>Staff training (4 sessions × 2 hrs)</td><td>1</td><td>20,000</td><td>20,000</td></tr>
+        <tr class="subtotal"><td colspan="3"><strong>One-time subtotal</strong></td><td><strong>200,000+</strong></td></tr>
+        <tr><td>Monthly subscription (per outlet)</td><td>___</td><td>7,999/mo</td><td>_______/mo</td></tr>
+        <tr><td>Annual subscription (prepaid — 2 months free)</td><td>___</td><td>79,990/yr per outlet</td><td>_______/yr</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Option 3 — Enterprise (Unlimited outlets + custom scope)</h3>
+    <table class="pricing-table">
+      <thead>
+        <tr><th>Line Item</th><th>Description</th><th>Amount (₹)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Enterprise platform license</td><td>Unlimited outlets, custom SLA</td><td>Custom</td></tr>
+        <tr><td>Dedicated implementation</td><td>8–12 week rollout programme</td><td>Custom</td></tr>
+        <tr><td>Custom integrations &amp; API development</td><td>Third-party systems, ERP, accounting</td><td>Custom</td></tr>
+        <tr><td>Franchise &amp; food safety modules</td><td>Full module suite</td><td>Custom</td></tr>
+        <tr><td>AI recommendations &amp; profitability suite</td><td>Advanced analytics and automation</td><td>Custom</td></tr>
+        <tr><td>HQ Admin platform access</td><td>Cross-outlet management console</td><td>Custom</td></tr>
+        <tr><td>Priority support SLA</td><td>4-hour response, dedicated channel</td><td>Custom</td></tr>
+        <tr><td>Dedicated account manager</td><td>Named point of contact</td><td>Custom</td></tr>
+        <tr class="subtotal"><td colspan="2"><strong>Total</strong></td><td><strong>On request</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Add-On Services (À la carte)</h3>
+    <table class="pricing-table">
+      <thead>
+        <tr><th>Add-On</th><th>Unit Price (₹)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Additional POS terminal license</td><td>8,000 one-time + ₹999/mo</td></tr>
+        <tr><td>Additional KDS station</td><td>5,000 one-time + ₹499/mo</td></tr>
+        <tr><td>Additional captain device</td><td>2,000 one-time + ₹299/mo</td></tr>
+        <tr><td>Hardware bundle (POS terminal + printer + hub)</td><td>45,000 – 65,000</td></tr>
+        <tr><td>KDS Android tablet (pre-configured)</td><td>18,000 – 25,000</td></tr>
+        <tr><td>Custom report development</td><td>15,000 – 50,000</td></tr>
+        <tr><td>Additional training session (2 hrs)</td><td>5,000</td></tr>
+        <tr><td>Annual support &amp; maintenance (beyond standard)</td><td>15% of license value</td></tr>
+        <tr><td>Data migration (per outlet)</td><td>10,000 – 20,000</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Recommended Configuration</h3>
+    <table class="pricing-table">
+      <thead>
+        <tr><th>Component</th><th>Quantity</th><th>One-Time (₹)</th><th>Recurring (₹/mo)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Outlets</td><td>___</td><td></td><td></td></tr>
+        <tr><td>POS terminals</td><td>___</td><td></td><td></td></tr>
+        <tr><td>KDS stations</td><td>___</td><td></td><td></td></tr>
+        <tr><td>Captain devices</td><td>___</td><td></td><td></td></tr>
+        <tr><td>Implementation &amp; setup</td><td>1</td><td></td><td></td></tr>
+        <tr><td>Training sessions</td><td>___</td><td></td><td></td></tr>
+        <tr class="subtotal"><td colspan="2"><strong>Total</strong></td><td><strong>_______</strong></td><td><strong>_______/mo</strong></td></tr>
+      </tbody>
+    </table>
+    <p><strong>First-year total (estimated):</strong> ₹_______ &nbsp;(one-time + 12 × monthly subscription)</p>
+  </section>
+
+  <!-- MATURITY & TERMS -->
+  <section class="page-break">
+    <h2>4. Feature Maturity Summary</h2>
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>POS floor billing (Web + Desktop)</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>KDS (Web + Android)</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>Captain apps (Web + Mobile)</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>Operations console</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>Inventory &amp; procurement</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>HR &amp; payroll (India statutory)</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>Reservations &amp; waitlist</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>Aggregator inbox</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>Offline hub infrastructure</td><td class="status-ready">Production-ready</td></tr>
+        <tr><td>CRM customer UI</td><td class="status-progress">API ready — UI in progress</td></tr>
+        <tr><td>Food safety &amp; franchise UI</td><td class="status-progress">API ready — UI pending</td></tr>
+        <tr><td>Customer QR ordering</td><td class="status-demo">Demo / prototype</td></tr>
+      </tbody>
+    </table>
+
+    <h2>5. Terms &amp; Conditions</h2>
+    <div class="terms">
+      <ol>
+        <li><strong>Validity:</strong> This quotation is valid for 30 days from the date of issue.</li>
+        <li><strong>Payment terms:</strong> 50% on signing, 30% on go-live, 20% after 30-day acceptance period.</li>
+        <li><strong>Subscription billing:</strong> Monthly subscriptions billed in advance; annual plans prepaid with 2 months free.</li>
+        <li><strong>Implementation timeline:</strong> 4–6 weeks (Starter), 6–10 weeks (Professional), 8–12 weeks (Enterprise).</li>
+        <li><strong>Support:</strong> Standard support included — email and chat, business hours, 24-hour response SLA.</li>
+        <li><strong>Hardware:</strong> Hardware prices exclude GST; delivery and on-site installation quoted separately.</li>
+        <li><strong>Exclusions:</strong> Internet connectivity, payment gateway merchant fees, third-party aggregator fees, and statutory filing services are not included.</li>
+        <li><strong>Intellectual property &amp; data:</strong> Client retains ownership of all business data; Kaana Foods retains platform intellectual property.</li>
+        <li><strong>Cancellation:</strong> Monthly plans require 30 days written notice; annual plans are non-refundable after go-live.</li>
+        <li><strong>GST:</strong> All prices are exclusive of applicable GST unless otherwise stated.</li>
+      </ol>
+    </div>
+
+    <h2>6. Acceptance</h2>
+    <div class="signature-block">
+      <p>By signing below, the client confirms acceptance of the selected package, pricing, and terms outlined in this document.</p>
+      <div class="signature-grid">
+        <div>
+          <div class="sig-line"></div>
+          <p class="sig-label">Authorized Signatory — Client</p>
+          <div class="sig-line" style="margin-top:20px"></div>
+          <p class="sig-label">Name &amp; Designation</p>
+          <div class="sig-line" style="margin-top:20px"></div>
+          <p class="sig-label">Date</p>
+        </div>
+        <div>
+          <div class="sig-line"></div>
+          <p class="sig-label">Authorized Signatory — Kaana Foods</p>
+          <div class="sig-line" style="margin-top:20px"></div>
+          <p class="sig-label">Name &amp; Designation</p>
+          <div class="sig-line" style="margin-top:20px"></div>
+          <p class="sig-label">Date</p>
+        </div>
+      </div>
+      <p style="margin-top:24px"><strong>Selected Package:</strong> &nbsp; ☐ Starter &nbsp;&nbsp; ☐ Professional &nbsp;&nbsp; ☐ Enterprise</p>
+      <p><strong>Special Requirements:</strong> _________________________________________________________________</p>
+    </div>
+
+    <p class="footer-note">
+      Kaana Foods &nbsp;|&nbsp; Restaurant Management Platform &nbsp;|&nbsp; Confidential — For client use only<br />
+      [your-email@kaanafoods.com] &nbsp;|&nbsp; [+91 XXXXX XXXXX] &nbsp;|&nbsp; www.kaanafoods.com
+    </p>
+  </section>
+
+</body>
+</html>

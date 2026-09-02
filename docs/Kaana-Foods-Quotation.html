@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kaana AI Technologies — Quotation</title>
+  <style>
+    @page { size: A4; margin: 1.8cm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", Calibri, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.5;
+      color: #2d2d2d;
+      max-width: 190mm;
+      margin: 0 auto;
+      padding: 28px 36px 40px;
+      background: #fff;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e85d04;
+      margin-bottom: 24px;
+    }
+    .logo-block {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-block img {
+      height: 52px;
+      width: auto;
+    }
+    .brand-text h1 {
+      font-size: 16pt;
+      font-weight: 800;
+      color: #222;
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+    .brand-text .product {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #e85d04;
+      margin-top: 2px;
+    }
+    .brand-text .tagline {
+      font-size: 8.5pt;
+      color: #888;
+      margin-top: 1px;
+    }
+    .quote-meta {
+      text-align: right;
+      font-size: 9.5pt;
+      color: #555;
+    }
+    .quote-meta strong { color: #222; }
+    .quote-badge {
+      display: inline-block;
+      background: #fff3eb;
+      color: #e85d04;
+      font-weight: 700;
+      font-size: 8.5pt;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-top: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .client-bar {
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 24px;
+      font-size: 10pt;
+      margin-bottom: 24px;
+    }
+    .client-bar span { color: #888; }
+    .client-bar strong { color: #222; }
+
+    h2 {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #e85d04;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 22px 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h2 .icon { font-size: 14pt; }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #fafafa;
+      border-radius: 8px;
+      border: 1px solid #f0f0f0;
+    }
+    .feature-icon {
+      font-size: 16pt;
+      line-height: 1;
+      flex-shrink: 0;
+      width: 28px;
+      text-align: center;
+    }
+    .feature-text strong {
+      display: block;
+      font-size: 10pt;
+      color: #222;
+      margin-bottom: 2px;
+    }
+    .feature-text span {
+      font-size: 8.5pt;
+      color: #777;
+      line-height: 1.35;
+    }
+
+    .pricing-box {
+      background: linear-gradient(135deg, #fff8f3 0%, #fff 100%);
+      border: 2px solid #e85d04;
+      border-radius: 12px;
+      padding: 22px 24px;
+      margin: 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pricing-left h3 {
+      font-size: 13pt;
+      color: #222;
+      margin-bottom: 4px;
+    }
+    .pricing-left p {
+      font-size: 9pt;
+      color: #666;
+    }
+    .pricing-right { text-align: right; }
+    .price-tag {
+      font-size: 28pt;
+      font-weight: 800;
+      color: #e85d04;
+      line-height: 1;
+    }
+    .price-tag small {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #888;
+    }
+    .price-note {
+      font-size: 8.5pt;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      margin: 10px 0;
+    }
+    th {
+      background: #f5f5f5;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 2px solid #e85d04;
+      color: #444;
+      font-size: 9pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    tr:last-child td { border-bottom: none; }
+    .amount { text-align: right; font-weight: 600; }
+    .total-row td {
+      background: #fff8f3;
+      font-weight: 700;
+      font-size: 11pt;
+      color: #e85d04;
+      border-top: 2px solid #e85d04;
+      border-bottom: none;
+      padding: 12px;
+    }
+
+    .includes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0 4px;
+    }
+    .pill {
+      background: #f0f0f0;
+      color: #555;
+      font-size: 8.5pt;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .terms {
+      font-size: 9pt;
+      color: #777;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #eee;
+    }
+    .terms li { margin-bottom: 4px; margin-left: 16px; }
+
+    .footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-top: 28px;
+    }
+    .sig-block .line {
+      border-bottom: 1px solid #ccc;
+      height: 28px;
+      margin-bottom: 4px;
+    }
+    .sig-block label {
+      font-size: 8.5pt;
+      color: #999;
+    }
+    .footer-note {
+      text-align: center;
+      font-size: 8.5pt;
+      color: #bbb;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo-block">
+      <img src="kaana-logo.png" alt="Kaana Logo" />
+      <div class="brand-text">
+        <h1>Kaana AI Technologies</h1>
+        <div class="product">Kaana Foods</div>
+        <div class="tagline">Restaurant Management Platform</div>
+      </div>
+    </div>
+    <div class="quote-meta">
+      <strong>QUOTATION</strong><br />
+      Ref: KF-2026-001<br />
+      Date: 7 August 2026<br />
+      Valid till: 7 September 2026
+      <div class="quote-badge">CONFIDENTIAL</div>
+    </div>
+  </div>
+
+  <div class="client-bar">
+    <div><span>Prepared for &nbsp;</span><strong>Sampath</strong></div>
+    <div><span>Contact &nbsp;</span><strong>+91 7276268933</strong></div>
+    <div><span>Outlets &nbsp;</span><strong>1 Outlet</strong></div>
+  </div>
+
+  <p style="font-size:10pt; color:#555; margin-bottom:4px;">
+    Complete restaurant management solution — POS, kitchen, floor service, inventory, HR, payroll, and analytics in one platform.
+  </p>
+
+  <h2><span class="icon">📋</span> What's Included</h2>
+  <div class="features">
+
+    <div class="feature-item">
+      <div class="feature-icon">🖥️</div>
+      <div class="feature-text">
+        <strong>Point of Sale</strong>
+        <span>Floor plan, dine-in/takeaway/delivery, billing, UPI &amp; card payments, KOT printing</span>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon">👨‍🍳</div>
+      <div class="feature-text">
+        <strong>Kitchen Display (KDS)</strong>
+        <span>Ticket board, bump workflow, station queues, real-time alerts</span>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon">🍽️</div>
+      <div class="feature-text">
+        <strong>Captain / Waiter App</strong>
+        <span>Table map, ready-to-serve alerts, mobile ordering, bill requests</span>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon">📊</div>
+      <div class="feature-text">
+        <strong>Operations Console</strong>
+        <span>Dashboard, menu management, live floor monitor, reports &amp; GST export</span>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon">📦</div>
+      <div class="feature-text">
+        <strong>Inventory &amp; Procurement</strong>
+        <span>Stock tracking, recipes, purchase orders, wastage, inter-outlet transfers</span>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon">👥</div>
+      <div class="feature-text">
+        <strong>HR &amp; Payroll</strong>
+        <span>Attendance, shifts, leave, payroll runs, PF/ESI/gratuity compliance</span>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon">📅</div>
+      <div class="feature-text">
+        <strong>Reservations &amp; Waitlist</strong>
+        <span>Online booking, check-in, table assignment, walk-in queue</span>
+      </div>
+    </div>
+
+    <div class="feature-item">
+      <div class="feature-icon">🔗</div>
+      <div class="feature-text">
+        <strong>Integrations</strong>
+        <span>Swiggy/Zomato aggregator inbox, offline hub, real-time sync, API access</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="pricing-box">
+    <div class="pricing-left">
+      <h3>🚀 Complete Platform Package</h3>
+      <p>All modules · 1 outlet · Unlimited users · Cloud hosted</p>
+      <div class="includes">
+        <span class="pill">✓ Setup &amp; onboarding</span>
+        <span class="pill">✓ Menu configuration</span>
+        <span class="pill">✓ Staff training</span>
+        <span class="pill">✓ Standard support</span>
+      </div>
+    </div>
+    <div class="pricing-right">
+      <div class="price-tag">₹16,000<small>/yr</small></div>
+      <div class="price-note">+ GST · Billed annually</div>
+    </div>
+  </div>
+
+  <h2><span class="icon">💰</span> Pricing Breakdown</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Details</th>
+        <th style="text-align:right">Amount (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Platform Subscription</td>
+        <td>POS + KDS + Captain + Operations + Inventory + HR/Payroll + Reservations</td>
+        <td class="amount">16,000</td>
+      </tr>
+      <tr>
+        <td>Setup &amp; Onboarding</td>
+        <td>Menu upload, floor plan, user accounts, device configuration</td>
+        <td class="amount">Included</td>
+      </tr>
+      <tr>
+        <td>Staff Training</td>
+        <td>2 sessions × 2 hours (POS, KDS, operations console)</td>
+        <td class="amount">Included</td>
+      </tr>
+      <tr>
+        <td>Support</td>
+        <td>Phone &amp; chat support, business hours, 24-hr response</td>
+        <td class="amount">Included</td>
+      </tr>
+      <tr class="total-row">
+        <td colspan="2">💳 Annual Total</td>
+        <td class="amount">₹16,000 / year</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="terms">
+    <strong style="color:#555; font-size:9.5pt;">📌 Terms</strong>
+    <ul>
+      <li>Quotation valid for 30 days · Annual billing in advance · 30-day notice for non-renewal</li>
+      <li>Prices exclusive of GST · Internet, payment gateway fees, and hardware not included</li>
+      <li>Client retains ownership of business data · Kaana AI Technologies retains platform IP</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <div class="sig-block">
+      <div class="line"></div>
+      <label>Authorized Signatory — Client (Sampath)</label>
+      <div class="line" style="margin-top:16px"></div>
+      <label>Date</label>
+    </div>
+    <div class="sig-block">
+      <div class="line"></div>
+      <label>Authorized Signatory — Kaana AI Technologies</label>
+      <div class="line" style="margin-top:16px"></div>
+      <label>Date</label>
+    </div>
+  </div>
+
+  <p class="footer-note">Kaana AI Technologies · Kaana Foods · Restaurant Management Platform</p>
+
+</body>
+</html>

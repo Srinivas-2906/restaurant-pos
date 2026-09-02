@@ -1,9 +1,10 @@
 {
   "expo": {
-    "name": "Kaana KDS",
+    "name": "Kaana Kitchens KDS",
     "slug": "kaana-kds",
     "version": "1.0.0",
     "orientation": "landscape",
+    "icon": "./assets/kaana-logo.png",
     "scheme": "kaana-kds",
     "platforms": ["android"],
     "plugins": ["expo-router"]

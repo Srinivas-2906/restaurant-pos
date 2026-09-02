@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { KaanaBrand } from "@kaana/ui";
 import { login } from "@/lib/api";
 import { getAppEntryForRole, redirectUrlForRole, resolvePrimaryRole } from "@kaana/role-shells";
 
@@ -32,11 +33,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-orange-600">Kaana Platform Admin</h1>
-          <p className="text-gray-500 mt-2">Internal Kaana staff only</p>
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-50 p-4 sm:p-6 safe-bottom safe-top overflow-x-clip">
+      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+        <div className="mb-8 min-w-0">
+          <KaanaBrand size="lg" framed appLabel="Platform Admin" className="mb-4" labelClassName="text-gray-500" />
+          <h1 className="text-2xl font-bold text-gray-900">Platform Admin</h1>
+          <p className="text-gray-500 mt-2">Internal Kaana Kitchens staff only</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -51,7 +53,7 @@ export default function LoginPage() {
           <button type="submit" disabled={loading} className="w-full bg-orange-600 text-white py-2 rounded-lg font-medium hover:bg-orange-700 disabled:opacity-50">
             {loading ? "Signing in..." : "Sign In"}
           </button>
-          <p className="text-xs text-gray-400 text-center">Restaurant staff should use Kaana Operations at port 3010</p>
+          <p className="text-xs text-gray-400 text-center">Restaurant staff should use Kaana Kitchens Operations</p>
         </form>
       </div>
     </div>

@@ -1,10 +1,12 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "@nestjs/config";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards";
 import { RolesGuard } from "./auth/roles.guard";
+import { TerminalsModule } from "./terminals/terminals.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { OutletsModule } from "./outlets/outlets.module";
 import { UsersModule } from "./users/users.module";
@@ -30,15 +32,19 @@ import { FranchiseModule } from "./franchise/franchise.module";
 import { TrainingModule } from "./training/training.module";
 import { StaffModule } from "./staff/staff.module";
 import { ApprovalsModule } from "./approvals/approvals.module";
+import { WaitlistModule } from "./waitlist/waitlist.module";
 import { PayrollModule } from "./payroll/payroll.module";
+import { HrModule } from "./hr/hr.module";
 import { HealthController } from "./health.controller";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,
     EventsModule,
     AuthModule,
+    TerminalsModule,
     AuditModule,
     DevicesModule,
     OrganizationsModule,
@@ -50,6 +56,7 @@ import { HealthController } from "./health.controller";
     InventoryModule,
     CrmModule,
     ReservationsModule,
+    WaitlistModule,
     ReportsModule,
     PartnerModule,
     SyncModule,
@@ -64,11 +71,13 @@ import { HealthController } from "./health.controller";
     StaffModule,
     ApprovalsModule,
     PayrollModule,
+    HrModule,
   ],
   controllers: [HealthController],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

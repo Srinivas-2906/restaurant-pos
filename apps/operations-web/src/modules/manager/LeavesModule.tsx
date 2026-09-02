@@ -15,12 +15,22 @@ interface LeaveRow {
   startDate: string;
   endDate: string;
   reason?: string | null;
-  staff: { user: { firstName: string; lastName: string | null } };
+  staff: {
+    displayName?: string | null;
+    legalName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    user?: { firstName: string; lastName: string | null } | null;
+  };
 }
 
 interface StaffRow {
-  userId: string;
-  user: { firstName: string; lastName: string | null };
+  id: string;
+  displayName?: string | null;
+  legalName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  user?: { firstName: string; lastName: string | null } | null;
 }
 
 interface Holiday {
@@ -29,17 +39,27 @@ interface Holiday {
   name: string;
 }
 
+interface LeavePolicy {
+  id: string;
+  name: string;
+  leaveType: string;
+  maxBalance?: number | null;
+  carryForwardMax?: number | null;
+}
+
 export function LeavesModule() {
   const [leaves, setLeaves] = useState<LeaveRow[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [policies, setPolicies] = useState<LeavePolicy[]>([]);
   const [staff, setStaff] = useState<StaffRow[]>([]);
-  const [userId, setUserId] = useState("");
+  const [staffProfileId, setStaffProfileId] = useState("");
   const [type, setType] = useState("casual");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [holidayDate, setHolidayDate] = useState("");
   const [holidayName, setHolidayName] = useState("");
+  const [policyForm, setPolicyForm] = useState({ name: "", leaveType: "casual", maxBalance: "" });
   const [msg, setMsg] = useState("");
   const outletId = getOutletId();
 
@@ -48,6 +68,7 @@ export function LeavesModule() {
     api<LeaveRow[]>(`/staff/outlets/${outletId}/leaves`).then(setLeaves).catch(() => setLeaves([]));
     api<Holiday[]>(`/staff/outlets/${outletId}/holidays`).then(setHolidays).catch(() => setHolidays([]));
     api<StaffRow[]>(`/staff/outlets/${outletId}`).then(setStaff).catch(() => setStaff([]));
+    api<LeavePolicy[]>("/hr/leave-policies").then(setPolicies).catch(() => setPolicies([]));
   }
 
   useEffect(load, [outletId]);
@@ -58,7 +79,7 @@ export function LeavesModule() {
     try {
       await api(`/staff/outlets/${outletId}/leaves`, {
         method: "POST",
-        body: JSON.stringify({ userId, type, startDate, endDate, reason }),
+        body: JSON.stringify({ staffProfileId, type, startDate, endDate, reason }),
       });
       setMsg("Leave request created");
       load();
@@ -83,18 +104,42 @@ export function LeavesModule() {
     load();
   }
 
+  async function addPolicy(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await api("/hr/leave-policies", {
+        method: "POST",
+        body: JSON.stringify({
+          name: policyForm.name,
+          leaveType: policyForm.leaveType,
+          outletId: outletId || undefined,
+          maxBalance: policyForm.maxBalance ? Number(policyForm.maxBalance) : undefined,
+        }),
+      });
+      setMsg("Leave policy created");
+      setPolicyForm({ name: "", leaveType: "casual", maxBalance: "" });
+      load();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Failed");
+    }
+  }
+
   return (
     <PageContent>
-      <PageHeader title="Leaves & holidays" description="Track time off and public holidays." />
+      <PageHeader title="Leave" description="Configurable leave policies, balances and approvals." />
       <StaffNav />
       {msg && <p className="text-sm mb-4 text-green-700">{msg}</p>}
 
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
         <Panel title="Request leave">
           <form onSubmit={submitLeave} className="space-y-3">
-            <select value={userId} onChange={(e) => setUserId(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5" required>
+            <select value={staffProfileId} onChange={(e) => setStaffProfileId(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5" required>
               <option value="">Employee...</option>
-              {staff.map((s) => <option key={s.userId} value={s.userId}>{s.user.firstName} {s.user.lastName}</option>)}
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.displayName || s.legalName || `${s.firstName ?? s.user?.firstName ?? ""} ${s.lastName ?? s.user?.lastName ?? ""}`.trim()}
+                </option>
+              ))}
             </select>
             <select value={type} onChange={(e) => setType(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5">
               {["casual", "sick", "earned", "unpaid", "other"].map((t) => <option key={t} value={t}>{t}</option>)}
@@ -124,6 +169,29 @@ export function LeavesModule() {
         </Panel>
       </div>
 
+      <Panel title="Leave policies" className="mb-6">
+        <form onSubmit={addPolicy} className="grid md:grid-cols-4 gap-3 mb-4">
+          <input value={policyForm.name} onChange={(e) => setPolicyForm({ ...policyForm, name: e.target.value })} placeholder="Policy name" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm" required />
+          <select value={policyForm.leaveType} onChange={(e) => setPolicyForm({ ...policyForm, leaveType: e.target.value })} className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm">
+            {["casual", "sick", "earned", "unpaid", "other"].map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <input type="number" value={policyForm.maxBalance} onChange={(e) => setPolicyForm({ ...policyForm, maxBalance: e.target.value })} placeholder="Max balance (days)" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
+          <button type="submit" className="bg-kaana hover:bg-kaana-dark text-white px-4 py-2 rounded-xl text-sm font-medium">Add policy</button>
+        </form>
+        {policies.length === 0 ? (
+          <EmptyState title="No leave policies" />
+        ) : (
+          <ul className="divide-y divide-gray-100 text-sm">
+            {policies.map((p) => (
+              <li key={p.id} className="py-2 flex justify-between">
+                <span>{p.name} <span className="text-gray-400 capitalize">({p.leaveType})</span></span>
+                <span className="text-gray-500">{p.maxBalance != null ? `${p.maxBalance} days max` : "—"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
       <Panel title="Leave requests">
         {leaves.length === 0 ? (
           <EmptyState title="No leave requests" />
@@ -142,7 +210,9 @@ export function LeavesModule() {
               <tbody>
                 {leaves.map((l) => (
                   <tr key={l.id} className="border-t border-gray-100">
-                    <td className="p-3">{l.staff.user.firstName} {l.staff.user.lastName}</td>
+                    <td className="p-3">
+                      {l.staff.displayName || l.staff.legalName || `${l.staff.user?.firstName ?? ""} ${l.staff.user?.lastName ?? ""}`.trim()}
+                    </td>
                     <td className="p-3 capitalize">{l.type}</td>
                     <td className="p-3">{new Date(l.startDate).toLocaleDateString()} – {new Date(l.endDate).toLocaleDateString()}</td>
                     <td className="p-3 capitalize">{l.status}</td>

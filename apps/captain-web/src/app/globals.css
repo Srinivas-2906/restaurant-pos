@@ -1,0 +1,52 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@layer base {
+  body {
+    @apply bg-surface text-slate-900 antialiased;
+  }
+}
+
+@layer components {
+  .role-floor-card {
+    @apply relative flex flex-col rounded-2xl p-4 min-h-[108px] transition-all duration-200 bg-white shadow-card ring-1 ring-black/[0.04];
+  }
+
+  .role-chip {
+    @apply inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold;
+  }
+
+  .role-chip-cooking {
+    @apply bg-amber-100 text-amber-900;
+  }
+
+  .role-chip-ready {
+    @apply bg-emerald-100 text-emerald-800;
+  }
+
+  .role-chip-served {
+    @apply bg-sky-100 text-sky-800;
+  }
+
+  .role-action-ready {
+    @apply rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-all active:scale-[0.98] disabled:opacity-50;
+  }
+
+  .captain-serve-card {
+    @apply relative bg-white rounded-2xl shadow-card ring-1 ring-black/[0.04] overflow-hidden transition-all hover:shadow-panel;
+  }
+
+  .captain-serve-accent {
+    @apply absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl;
+  }
+
+  .captain-ready-glow {
+    animation: captain-ready-glow 2.5s ease-in-out infinite;
+  }
+
+  @keyframes captain-ready-glow {
+    0%, 100% { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 0 0 0 rgb(16 185 129 / 0.25); }
+    50% { box-shadow: 0 4px 12px -2px rgb(16 185 129 / 0.12), 0 0 0 8px rgb(16 185 129 / 0); }
+  }
+}
