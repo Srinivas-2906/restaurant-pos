@@ -129,7 +129,10 @@ export async function api<T>(path: string, options: RequestInit = {}, retried = 
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || err.message || "Request failed");
   }
-  return res.json();
+
+  const text = await res.text();
+  if (!text) return null as T;
+  return JSON.parse(text) as T;
 }
 
 export async function resolveOutletId(): Promise<string | null> {
@@ -164,7 +167,25 @@ export async function fetchOutletSettings(outletId: string) {
 }
 
 export async function getOpenOrderByTable(outletId: string, tableId: string) {
-  return api<OrderDto | null>(`/orders/open/by-table?outletId=${outletId}&tableId=${tableId}`);
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const res = await fetch(`${API_URL}/orders/open/by-table?outletId=${outletId}&tableId=${tableId}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (res.status === 404) return null;
+  if (res.status === 401) {
+    const newToken = await refreshTokenOnce();
+    if (newToken) return getOpenOrderByTable(outletId, tableId);
+    redirectToLogin();
+    throw new Error("Session expired — please sign in again");
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || err.message || "Request failed");
+  }
+  return res.json() as Promise<OrderDto>;
 }
 
 export async function createTableOrder(outletId: string, tableId: string, guestCount: number) {

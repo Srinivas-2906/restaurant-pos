@@ -3,11 +3,11 @@ import React from "react";
 export type KaanaLogoSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 const SIZE_CLASS: Record<KaanaLogoSize, string> = {
-  xs: "h-6",
-  sm: "h-8",
-  md: "h-10",
-  lg: "h-12",
-  xl: "h-16",
+  xs: "h-5 max-h-5",
+  sm: "h-7 max-h-7",
+  md: "h-9 max-h-9",
+  lg: "h-10 max-h-10",
+  xl: "h-12 max-h-12",
 };
 
 export function KaanaLogo({
@@ -24,7 +24,7 @@ export function KaanaLogo({
   /** Adds a black frame so the wordmark reads on light backgrounds */
   framed?: boolean;
 }) {
-  const imgClass = className ?? `${SIZE_CLASS[size]} w-auto max-w-[min(100%,220px)]`;
+  const imgClass = className ?? `${SIZE_CLASS[size]} w-auto max-w-[160px]`;
   const img = <img src={src} alt={alt} className={`object-contain object-left shrink-0 ${imgClass}`} />;
 
   if (framed) {

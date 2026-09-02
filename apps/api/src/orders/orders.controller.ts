@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request, NotFoundException } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { OrdersService } from "./orders.service";
 import { JwtAuthGuard, Roles } from "../auth/guards";
@@ -30,8 +30,10 @@ export class OrdersController {
 
   @Get("open/by-table")
   @Roles("biller", "captain", "manager")
-  openByTable(@Query("outletId") outletId: string, @Query("tableId") tableId: string) {
-    return this.ordersService.getOpenOrderForTable(outletId, tableId);
+  async openByTable(@Query("outletId") outletId: string, @Query("tableId") tableId: string) {
+    const order = await this.ordersService.getOpenOrderForTable(outletId, tableId);
+    if (!order) throw new NotFoundException("No open order for this table");
+    return order;
   }
 
   @Get(":id/kitchen-timeline")

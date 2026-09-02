@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import { StaffLoginForm } from "@kaana/ui";
-import { resolvePrimaryRole, usesPosApp } from "@kaana/role-shells";
-import { api, login, registerTerminal, setSelectedOutletId, setTerminalCredential } from "@/lib/api";
+import { login, registerTerminal, setSelectedOutletId, setTerminalCredential, fetchTerminalMe, clearTerminalCredential } from "@/lib/api";
+
+/** Matches seed demo terminal secret — used to reconnect without re-registering. */
+const DEMO_TERMINAL_SECRET = "kaana-demo-terminal-secret";
 
 type TerminalOption = {
   id: string;
   name: string;
   code: string;
+  isRegistered?: boolean;
+  isActive?: boolean;
+  isMaster?: boolean;
 };
 
 function getOutletIdFromUser(user: { roles?: Array<{ outletId?: string | null }> }) {
@@ -16,19 +21,43 @@ function getOutletIdFromUser(user: { roles?: Array<{ outletId?: string | null }>
 }
 
 export function PosTerminalSetup({ onRegistered }: { onRegistered: () => void }) {
-  const [step, setStep] = useState<"login" | "pick-terminal">("login");
-  const [outletId, setOutletId] = useState<string | null>(null);
-  const [terminals, setTerminals] = useState<TerminalOption[]>([]);
-  const [registeringId, setRegisteringId] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function connectTerminal(terminal: TerminalOption) {
+    setConnecting(true);
+    setError(null);
+    try {
+      if (terminal.isRegistered) {
+        setTerminalCredential(terminal.id, DEMO_TERMINAL_SECRET);
+        try {
+          await fetchTerminalMe();
+          onRegistered();
+          return;
+        } catch {
+          clearTerminalCredential();
+        }
+      }
+
+      const result = await registerTerminal(terminal.id);
+      setTerminalCredential(result.terminal.id, result.deviceSecret);
+      onRegistered();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not connect this counter");
+    } finally {
+      setConnecting(false);
+    }
+  }
 
   async function handleManagerLogin(email: string, password: string) {
     setError(null);
     const data = await login(email, password);
-    const role = resolvePrimaryRole(data.user);
-    const canRegister = usesPosApp(role) || role === "owner" || role === "manager";
+    const roles = data.user.roles?.map((r) => r.role) ?? [];
+    const canRegister = roles.includes("manager") || roles.includes("owner");
     if (!canRegister) {
-      throw new Error("Only managers or POS staff can register this terminal.");
+      throw new Error(
+        "Use a manager account (manager@kaanafoods.in) to connect this counter. Cashiers sign in with PIN after setup.",
+      );
     }
 
     const resolvedOutletId = getOutletIdFromUser(data.user);
@@ -36,73 +65,49 @@ export function PosTerminalSetup({ onRegistered }: { onRegistered: () => void })
       throw new Error("No outlet assigned to this account.");
     }
 
-    setOutletId(resolvedOutletId);
     setSelectedOutletId(resolvedOutletId);
 
-    const outlet = await api<{ terminals?: TerminalOption[] }>(`/outlets/${resolvedOutletId}`);
-    const list = outlet.terminals ?? [];
+    const outlet = await loginFetchOutlet(resolvedOutletId, data.accessToken);
+    const list = (outlet.terminals ?? []).filter((t) => t.isActive !== false);
     if (list.length === 0) {
-      throw new Error("No terminals configured for this outlet. Create one in Operations first.");
+      throw new Error("No POS counter configured for this outlet yet.");
     }
-    setTerminals(list);
-    setStep("pick-terminal");
-  }
 
-  async function handleRegister(terminalId: string) {
-    setRegisteringId(terminalId);
-    setError(null);
-    try {
-      const result = await registerTerminal(terminalId);
-      setTerminalCredential(result.terminal.id, result.deviceSecret);
-      onRegistered();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
-    } finally {
-      setRegisteringId(null);
-    }
-  }
-
-  if (step === "login") {
-    return (
-      <div className="space-y-4">
-        <StaffLoginForm
-          appName="Kaana Kitchens POS"
-          badge="Terminal setup"
-          tagline="Manager sign-in required once to register this device"
-          hint="Use your manager account to bind this browser to a POS terminal."
-          defaultEmail="manager@kaanafoods.in"
-          accent="orange"
-          onSubmit={handleManagerLogin}
-        />
-        {error && <p className="text-center text-sm text-red-400">{error}</p>}
-      </div>
-    );
+    const counter = list.find((t) => t.isMaster) ?? list[0];
+    await connectTerminal(counter);
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto p-8 bg-gray-800 rounded-2xl border border-gray-700">
-      <h2 className="text-xl font-bold text-white mb-2">Register this terminal</h2>
-      <p className="text-sm text-gray-400 mb-6">
-        Choose the counter this device represents. A one-time device secret will be stored locally.
-      </p>
-      <div className="space-y-2">
-        {terminals.map((terminal) => (
-          <button
-            key={terminal.id}
-            type="button"
-            disabled={registeringId !== null}
-            onClick={() => handleRegister(terminal.id)}
-            className="w-full text-left px-4 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 disabled:opacity-50 transition-colors"
-          >
-            <p className="font-medium text-white">{terminal.name}</p>
-            <p className="text-xs text-gray-400">Code {terminal.code}</p>
-          </button>
-        ))}
-      </div>
-      {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
-      {registeringId && (
-        <p className="mt-4 text-sm text-orange-300">Registering terminal…</p>
+    <div className="space-y-4 w-full max-w-md">
+      <StaffLoginForm
+        appName="Kaana Kitchens POS"
+        badge="Counter setup"
+        tagline="One-time manager sign-in to connect this device"
+        hint="After setup, staff pick their name and enter a PIN. Full restaurant onboarding comes later."
+        defaultEmail="manager@kaanafoods.in"
+        accent="orange"
+        onSubmit={handleManagerLogin}
+      />
+      {connecting && (
+        <p className="text-center text-sm text-orange-300">Connecting counter…</p>
       )}
+      {error && <p className="text-center text-sm text-red-400">{error}</p>}
     </div>
   );
+}
+
+async function loginFetchOutlet(
+  outletId: string,
+  token: string,
+): Promise<{ terminals?: TerminalOption[] }> {
+  const raw = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+  const base = raw.endsWith("/api") ? raw : `${raw}/api`;
+  const res = await fetch(`${base}/outlets/${outletId}`, {
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.message || err.error || "Could not load outlet");
+  }
+  return res.json();
 }

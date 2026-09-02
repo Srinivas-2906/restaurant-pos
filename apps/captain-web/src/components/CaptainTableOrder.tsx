@@ -37,10 +37,11 @@ export function CaptainTableOrder({
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const oid = await resolveOutletId();
-    if (!oid) return;
+    if (!oid) throw new Error("No outlet assigned to this captain account");
     setOutletId(oid);
     const [menuData, outletData, openOrder] = await Promise.all([
       fetchMenu(oid),
@@ -56,11 +57,17 @@ export function CaptainTableOrder({
       setOrder(created);
       notify.success(`Order opened for Table ${tableNumber}`);
     }
+    setError(null);
   }, [tableId, tableNumber, guestCount]);
 
   useEffect(() => {
+    setLoading(true);
     load()
-      .catch((e) => notify.error(e instanceof Error ? e.message : "Failed to load order"))
+      .catch((e) => {
+        const message = e instanceof Error ? e.message : "Failed to load order";
+        setError(message);
+        notify.error(message);
+      })
       .finally(() => setLoading(false));
   }, [load]);
 
@@ -76,8 +83,28 @@ export function CaptainTableOrder({
     }
   }
 
-  if (loading || !order) {
+  if (loading) {
     return <p className="text-slate-500 text-center py-12">Loading order…</p>;
+  }
+
+  if (error || !order) {
+    return (
+      <div className="text-center py-12 space-y-3">
+        <p className="text-slate-600">{error ?? "Could not open this table."}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            load()
+              .catch((e) => setError(e instanceof Error ? e.message : "Failed to load order"))
+              .finally(() => setLoading(false));
+          }}
+          className="px-4 py-2 rounded-xl bg-teal-700 text-white text-sm font-semibold"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (

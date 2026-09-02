@@ -68,7 +68,7 @@ export function StaffLoginForm({
     <div className={`min-h-dvh flex items-center justify-center bg-gradient-to-br ${theme.bg} p-4 sm:p-6 safe-bottom safe-top overflow-x-clip`}>
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 overflow-hidden">
         <div className="mb-6 min-w-0">
-          <KaanaBrand size="lg" framed className="mb-4" />
+          <KaanaBrand size="sm" framed className="mb-4" />
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <h1 className="text-xl font-bold text-gray-900 truncate">{appName}</h1>
             {badge && (

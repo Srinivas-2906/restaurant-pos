@@ -52,10 +52,10 @@ export function RoleAppShell({
 
   return (
     <div className={`min-h-dvh flex flex-col ${theme.page} pb-[env(safe-area-inset-bottom)]`}>
-      <header className="bg-sidebar text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0 pt-[max(0.625rem,env(safe-area-inset-top))]">
+      <header className="bg-sidebar text-white px-4 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 pt-[max(0.625rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <KaanaBrand size="xs" appLabel={badge ? `${title} · ${badge}` : title} />
-          {subtitle && <p className="text-white/50 text-[11px] truncate hidden sm:block">{subtitle}</p>}
+          <KaanaBrand size="xs" appLabel={badge ? `${title} · ${badge}` : title} labelClassName="text-white/70" />
+          {subtitle && <p className="text-white/50 text-xs truncate hidden sm:block border-l border-white/15 pl-3">{subtitle}</p>}
         </div>
         {trailing && <div className="text-sm">{trailing}</div>}
       </header>

@@ -189,12 +189,19 @@ async function main() {
   }) ?? await prisma.terminal.create({
     data: {
       outletId: dineInOutlet.id,
-      name: "Main Counter",
+      name: "Counter",
       code: "T1",
       isMaster: true,
       deviceType: "pos",
     },
   });
+
+  await prisma.terminal.updateMany({
+    where: { outletId: dineInOutlet.id, code: "T1" },
+    data: { name: "Counter", isMaster: true, deviceType: "pos" },
+  });
+
+  await prisma.terminal.deleteMany({ where: { outletId: dineInOutlet.id, code: "T2" } });
 
   const demoTerminalSecret = "kaana-demo-terminal-secret";
   const demoPinHash = await bcrypt.hash("4821", 10);
@@ -202,25 +209,15 @@ async function main() {
   await prisma.terminal.update({
     where: { id: terminal.id },
     data: {
+      name: "Counter",
       deviceType: "pos",
+      isMaster: true,
       isRegistered: true,
       deviceSecretHash: demoDeviceSecretHash,
       registeredAt: new Date(),
       registeredByUserId: manager.id,
     },
   });
-
-  const existingT2 = await prisma.terminal.findFirst({ where: { outletId: dineInOutlet.id, code: "T2" } });
-  if (!existingT2) {
-    await prisma.terminal.create({
-      data: {
-        outletId: dineInOutlet.id,
-        name: "Secondary Counter",
-        code: "T2",
-        isMaster: false,
-      },
-    });
-  }
 
   let stations = await prisma.kitchenStation.findMany({ where: { outletId: dineInOutlet.id } });
 
