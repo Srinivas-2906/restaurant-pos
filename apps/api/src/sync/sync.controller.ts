@@ -1,17 +1,29 @@
 import { Controller, Get, Post, Body, Query, UseGuards, Request } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { SyncService } from "./sync.service";
+import { PosSyncService } from "./pos-sync.service";
 import { JwtAuthGuard } from "../auth/guards";
-import type { SyncBatchRequest } from "@kaana/sync-protocol";
+import { OperationalSessionGuard } from "../auth/operational-session.guard";
+import type { SyncBatchRequest, PosSyncBatchRequest } from "@kaana/sync-protocol";
 
 @ApiTags("sync")
 @Controller("sync")
 export class SyncController {
-  constructor(private syncService: SyncService) {}
+  constructor(
+    private syncService: SyncService,
+    private posSyncService: PosSyncService,
+  ) {}
 
   @Post("batch")
   ingestBatch(@Body() body: SyncBatchRequest) {
     return this.syncService.ingestBatch(body);
+  }
+
+  @Post("pos/batch")
+  @UseGuards(JwtAuthGuard, OperationalSessionGuard)
+  @ApiBearerAuth()
+  ingestPosBatch(@Body() body: PosSyncBatchRequest) {
+    return this.posSyncService.ingestBatch(body);
   }
 
   @Post("enqueue")

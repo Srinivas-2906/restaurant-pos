@@ -51,7 +51,12 @@
   }
 
   @keyframes kds-overdue-pulse {
-    0%, 100% { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 0 0 0 rgb(239 68 68 / 0.2); }
-    50% { box-shadow: 0 4px 12px -2px rgb(239 68 68 / 0.15), 0 0 0 6px rgb(239 68 68 / 0); }
+    0%,
+    100% {
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 0 0 0 rgb(239 68 68 / 0.2);
+    }
+    50% {
+      box-shadow: 0 4px 12px -2px rgb(239 68 68 / 0.15), 0 0 0 6px rgb(239 68 68 / 0);
+    }
   }
 }

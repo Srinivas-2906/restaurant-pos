@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { applyAuthHandoffFromSearchParams } from "@kaana/role-shells";
 import { OutletBootstrap } from "@/components/OutletBootstrap";
-import { RoleAppShell } from "@/components/RoleAppShell";
+import { RoleAppShell } from "@kaana/ui";
 import { ReservationsApp } from "@/components/ReservationsApp";
 
 function ReservationsPageInner() {
@@ -29,6 +29,7 @@ function ReservationsPageInner() {
     <>
       <OutletBootstrap />
       <RoleAppShell
+        variant="reservations"
         title="Kaana Kitchens Reservations"
         badge="Front Desk"
         subtitle="Table bookings & waitlist"

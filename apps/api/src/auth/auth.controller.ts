@@ -1,6 +1,7 @@
 import { Controller, Post, Body, UseGuards, Request } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
+import { SignupSchema } from "@kaana/shared-types";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./guards";
 import { Public } from "./public.decorator";
@@ -15,6 +16,13 @@ export class AuthController {
   @Post("login")
   login(@Body() body: { email: string; password: string }) {
     return this.authService.login(body.email, body.password);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post("signup")
+  signup(@Body() body: unknown) {
+    return this.authService.signup(SignupSchema.parse(body));
   }
 
   @Public()

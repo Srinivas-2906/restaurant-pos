@@ -59,7 +59,7 @@ export default function OrderScreen() {
     Alert.alert("Bill Requested", `Table ${tableNumber} — ₹${Number(order.totalAmount).toFixed(0)} sent to cashier`);
   }
 
-  const allItems = menu.flatMap((c) => c.items.filter((i) => i.isAvailable !== false));
+  const allItems = menu.flatMap((c) => (c.items ?? []).filter((i) => i.isAvailable !== false));
   const pendingCount = order?.items.filter((i) => !i.kotId && i.status === "pending").length ?? 0;
 
   return (

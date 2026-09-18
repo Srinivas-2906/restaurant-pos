@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 import { groupKotsByTable, notify, notifyOrderUpdate, type KdsQueueItem, type TableKOTGroup } from "@kaana/ui";
 import { KdsFloor } from "@/components/KdsFloor";
 import { KdsTableDetail } from "@/components/KdsTableDetail";
-import { RoleAppShell } from "@/components/RoleAppShell";
+import { RoleAppShell } from "@kaana/ui";
 import {
   api,
   loadOutletName,

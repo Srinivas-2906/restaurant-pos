@@ -14,8 +14,12 @@ export class PermissionsGuard implements CanActivate {
     );
     if (!required) return true;
 
-    const request = context.switchToHttp().getRequest<{ user?: { permissions?: string[] } }>();
+    const request = context.switchToHttp().getRequest<{ user?: { permissions?: string[]; role?: string; roles?: string[] } }>();
     const permissions = request.user?.permissions ?? [];
+    const userRoles = [...new Set([request.user?.role, ...(request.user?.roles ?? [])].filter(Boolean))];
+    if (userRoles.includes("owner") || userRoles.includes("super_admin")) {
+      return true;
+    }
     if (!hasAppAccess(permissions, required)) {
       throw new ForbiddenException("Insufficient application access");
     }

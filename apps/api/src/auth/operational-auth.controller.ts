@@ -27,6 +27,13 @@ export class OperationalAuthController {
 
   @Public()
   @UseGuards(TerminalAuthGuard)
+  @Get("terminals/me/capabilities")
+  terminalCapabilities(@Req() req: { terminal: TerminalContext }) {
+    return this.operationalAuth.getTerminalCapabilities(req.terminal);
+  }
+
+  @Public()
+  @UseGuards(TerminalAuthGuard)
   @Get("terminals/me/eligible-staff")
   eligibleStaff(@Req() req: { terminal: TerminalContext }) {
     return this.operationalAuth.listEligibleStaff(req.terminal);

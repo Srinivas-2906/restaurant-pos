@@ -9,11 +9,14 @@ import {
   HQ_ADMIN_URL,
   resolveAllRoles,
   resolvePrimaryRole,
-  usesPosApp,
+  type UserRole,
 } from "@kaana/role-shells";
+import { APP_ACCESS, hasSessionAppAccess } from "@kaana/shared-types";
 import {
   getAuthMode,
   getOperationalStaff,
+  getPermissionsFromSession,
+  getRolesFromSession,
   getUser,
   hasValidSession,
   logoutSession,
@@ -37,6 +40,13 @@ function PosAuthGuardInner({ children }: { children: React.ReactNode }) {
 
     const authMode = getAuthMode();
     if (authMode === "operational") {
+      const perms = getPermissionsFromSession();
+      const roles = getRolesFromSession();
+      if (!hasSessionAppAccess(perms, roles, APP_ACCESS.access_pos)) {
+        logoutSession();
+        router.replace("/");
+        return;
+      }
       setReady(true);
       return;
     }
@@ -53,14 +63,20 @@ function PosAuthGuardInner({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!usesPosApp(primary) && primary !== "owner" && primary !== "manager") {
+    const perms = getPermissionsFromSession();
+    const roles = getRolesFromSession();
+    const roleList = (roles.length ? roles : resolveAllRoles(user)) as UserRole[];
+
+    if (
+      !hasSessionAppAccess(perms, roleList, APP_ACCESS.access_pos) &&
+      primary !== "owner" &&
+      primary !== "manager"
+    ) {
       logoutSession();
       router.replace("/");
       return;
     }
-
-    const roles = resolveAllRoles(user);
-    if (!canAccessPosRoute(roles, pathname)) {
+    if (!canAccessPosRoute(roleList, pathname)) {
       router.replace(getPosDeniedRedirect(primary));
       return;
     }

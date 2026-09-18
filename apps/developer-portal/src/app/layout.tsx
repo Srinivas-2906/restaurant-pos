@@ -7,6 +7,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "Kaana Kitchens Developer Portal",
+  description: "REST API, webhooks, and SDK documentation",
   icons: { icon: "/kaana-logo.png", apple: "/kaana-logo.png" },
 };
 
@@ -16,10 +17,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${inter.variable} font-sans`}>{children}</body>
     </html>
   );
 }

@@ -41,4 +41,13 @@ export class EventsGateway implements OnGatewayConnection {
   emitTerminalSync(terminalId: string, data: unknown) {
     this.server.to(`terminal:${terminalId}:sync`).emit("terminal:sync", data);
   }
+
+  emitConfigVersion(organizationId: string, configVersion: number) {
+    this.server.to(`org:${organizationId}:config`).emit("config:update", { organizationId, configVersion });
+  }
+
+  emitDeviceRevoked(organizationId: string, terminalId: string) {
+    this.server.to(`org:${organizationId}:config`).emit("device:revoked", { organizationId, terminalId });
+    this.server.to(`terminal:${terminalId}:sync`).emit("device:revoked", { organizationId, terminalId });
+  }
 }

@@ -1,14 +1,18 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth } from "@nestjs/swagger";
 import { OutletsService } from "./outlets.service";
 import { JwtAuthGuard, Roles } from "../auth/guards";
+import { OutletScopeService, type ScopedAuthUser } from "../auth/outlet-scope.service";
 
 @ApiTags("outlets")
 @Controller("outlets")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class OutletsController {
-  constructor(private outletsService: OutletsService) {}
+  constructor(
+    private outletsService: OutletsService,
+    private outletScope: OutletScopeService,
+  ) {}
 
   @Get()
   findAll(@Query("brandId") brandId: string) {
@@ -16,7 +20,8 @@ export class OutletsController {
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string) {
+  async findOne(@Request() req: { user: ScopedAuthUser }, @Param("id") id: string) {
+    await this.outletScope.assertUserOutletAccess(req.user, id);
     return this.outletsService.findOne(id);
   }
 
@@ -39,7 +44,8 @@ export class OutletsController {
   }
 
   @Get(":id/floor")
-  getFloor(@Param("id") id: string) {
+  async getFloor(@Request() req: { user: ScopedAuthUser }, @Param("id") id: string) {
+    await this.outletScope.assertUserOutletAccess(req.user, id);
     return this.outletsService.getFloorPlan(id);
   }
 

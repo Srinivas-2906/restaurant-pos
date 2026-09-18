@@ -25,6 +25,7 @@ describe("OperationalAuthService", () => {
   };
   let audit: { log: jest.Mock };
   let tokens: { issueTokens: jest.Mock };
+  let capabilities: { resolveForOrganization: jest.Mock };
   let service: OperationalAuthService;
 
   beforeEach(() => {
@@ -47,10 +48,22 @@ describe("OperationalAuthService", () => {
         refreshToken: "refresh-token",
       }),
     };
+    capabilities = {
+      resolveForOrganization: jest.fn().mockResolvedValue({
+        organizationId: "org-1",
+        operatingMode: "STANDARD",
+        subscriptionPlan: "LEGACY_FULL",
+        configVersion: 1,
+        modules: { pos: true },
+        features: {},
+        navDepth: 2,
+      }),
+    };
     service = new OperationalAuthService(
       prisma as never,
       audit as never,
       tokens as unknown as TokenService,
+      capabilities as never,
     );
   });
 
@@ -127,6 +140,69 @@ describe("OperationalAuthService", () => {
 
     await expect(service.pinLogin(terminal, "staff-chef", "4821")).rejects.toBeInstanceOf(
       ForbiddenException,
+    );
+  });
+
+  it("allows chef on kds terminal", async () => {
+    const kdsTerminal = { ...terminal, deviceType: "kds" };
+    const pinHash = await bcrypt.hash("3333", 10);
+    prisma.staffProfile.findFirst.mockResolvedValue({
+      id: "staff-chef",
+      userId: "user-chef",
+      organizationId: "org-1",
+      outletId: "outlet-1",
+      pinHash,
+      pinFailedAttempts: 0,
+      pinLockedUntil: null,
+      displayName: "Chef",
+      firstName: "Demo",
+      lastName: "Chef",
+      employeeCode: "EMP003",
+      outletAssignments: [],
+      staffRoleAssignments: [{ role: "chef", permissions: [] }],
+    });
+    prisma.staffProfile.update.mockResolvedValue({});
+
+    const result = await service.pinLogin(kdsTerminal, "staff-chef", "3333");
+    expect(result.accessToken).toBe("access-token");
+  });
+
+  it("denies biller on kds terminal", async () => {
+    const kdsTerminal = { ...terminal, deviceType: "kds" };
+    const pinHash = await bcrypt.hash("1111", 10);
+    prisma.staffProfile.findFirst.mockResolvedValue({
+      id: "staff-biller",
+      userId: "user-biller",
+      organizationId: "org-1",
+      outletId: "outlet-1",
+      pinHash,
+      pinFailedAttempts: 0,
+      pinLockedUntil: null,
+      outletAssignments: [],
+      staffRoleAssignments: [{ role: "biller", permissions: [] }],
+    });
+
+    await expect(service.pinLogin(kdsTerminal, "staff-biller", "1111")).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it("denies staff assigned to a different outlet", async () => {
+    const pinHash = await bcrypt.hash("1111", 10);
+    prisma.staffProfile.findFirst.mockResolvedValue({
+      id: "staff-other",
+      userId: "user-other",
+      organizationId: "org-1",
+      outletId: "other-outlet",
+      pinHash,
+      pinFailedAttempts: 0,
+      pinLockedUntil: null,
+      outletAssignments: [],
+      staffRoleAssignments: [{ role: "biller", permissions: [] }],
+    });
+
+    await expect(service.pinLogin(terminal, "staff-other", "1111")).rejects.toBeInstanceOf(
+      UnauthorizedException,
     );
   });
 

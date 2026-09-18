@@ -1,3 +1,6 @@
+import type { ResolvedCapabilities } from "@kaana/shared-types";
+import { persistCapabilities, readStoredCapabilities } from "@kaana/api-client";
+
 function trimSlash(value: string) {
   return value.replace(/\/+$/, "");
 }
@@ -43,9 +46,39 @@ export async function hub<T>(path: string, options: RequestInit = {}): Promise<T
 }
 
 export async function login(email: string, password: string) {
-  const data = await api<{ accessToken: string; refreshToken: string; user: AuthUser }>("/auth/login", {
+  const data = await api<{
+    accessToken: string;
+    refreshToken: string;
+    user: AuthUser;
+    capabilities?: ResolvedCapabilities;
+  }>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
+  });
+  localStorage.setItem("token", data.accessToken);
+  localStorage.setItem("refreshToken", data.refreshToken);
+  localStorage.setItem("user", JSON.stringify(data.user));
+  if (data.capabilities) {
+    persistCapabilities(data.capabilities);
+  }
+  return data;
+}
+
+export async function signup(payload: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName?: string;
+  restaurantName: string;
+  restaurantSlug: string;
+  outletName?: string;
+  outletCode?: string;
+  phone?: string;
+  gstin?: string;
+}) {
+  const data = await api<{ accessToken: string; refreshToken: string; user: AuthUser }>("/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
   localStorage.setItem("token", data.accessToken);
   localStorage.setItem("refreshToken", data.refreshToken);
@@ -58,13 +91,16 @@ export function logout() {
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
   localStorage.removeItem("selectedOutletId");
+  localStorage.removeItem("capabilities");
+  localStorage.removeItem("kaana_capabilities");
+  localStorage.removeItem("kaana_config_version");
 }
 
 export interface AuthUser {
   id: string;
   firstName: string;
   lastName: string;
-  organization?: { brands?: Array<{ id: string }> };
+  organization?: { id?: string; brands?: Array<{ id: string }> };
   roles?: Array<{ role: string; outletId?: string | null }>;
 }
 
@@ -72,6 +108,21 @@ export function getUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
   const u = localStorage.getItem("user");
   return u ? JSON.parse(u) : null;
+}
+
+export function getStoredCapabilities(): ResolvedCapabilities | null {
+  return readStoredCapabilities();
+}
+
+export async function fetchCapabilities(): Promise<ResolvedCapabilities> {
+  const data = await api<{ success: boolean; data: ResolvedCapabilities }>("/capabilities/me");
+  persistCapabilities(data.data);
+  return data.data;
+}
+
+export function getOrganizationId(): string | null {
+  const user = getUser();
+  return user?.organization?.id ?? null;
 }
 
 export function getOutletId(): string | null {

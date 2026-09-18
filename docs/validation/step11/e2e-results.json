@@ -1,0 +1,127 @@
+[
+    {
+        "Test":  "API health",
+        "Pass":  true,
+        "Detail":  ""
+    },
+    {
+        "Test":  "Baseline 6/6 tables free",
+        "Pass":  true,
+        "Detail":  "6/6"
+    },
+    {
+        "Test":  "Baseline PO count = 2",
+        "Pass":  true,
+        "Detail":  "count=2"
+    },
+    {
+        "Test":  "Capabilities SIMPLE/LEGACY_FULL",
+        "Pass":  true,
+        "Detail":  "mode=SIMPLE"
+    },
+    {
+        "Test":  "Captain denies EMP001 on CAPTAIN-01",
+        "Pass":  true,
+        "Detail":  "denied"
+    },
+    {
+        "Test":  "Chef denies EMP003 on CAPTAIN-01",
+        "Pass":  true,
+        "Detail":  "denied"
+    },
+    {
+        "Test":  "Cashier POS login EMP001",
+        "Pass":  true,
+        "Detail":  "EMP001"
+    },
+    {
+        "Test":  "Captain login EMP002",
+        "Pass":  true,
+        "Detail":  "EMP002"
+    },
+    {
+        "Test":  "Chef KDS login EMP003",
+        "Pass":  true,
+        "Detail":  "EMP003"
+    },
+    {
+        "Test":  "Operational JWT wrong outlet denied",
+        "Pass":  true,
+        "Detail":  "denied (403)"
+    },
+    {
+        "Test":  "Captain creates order",
+        "Pass":  true,
+        "Detail":  "id=cmtrslgt500atu97ct3oajr80"
+    },
+    {
+        "Test":  "KOT fired",
+        "Pass":  true,
+        "Detail":  "kots=2"
+    },
+    {
+        "Test":  "POS open order same ID",
+        "Pass":  true,
+        "Detail":  ""
+    },
+    {
+        "Test":  "KDS ready reflected",
+        "Pass":  true,
+        "Detail":  ""
+    },
+    {
+        "Test":  "Second KOT same order",
+        "Pass":  true,
+        "Detail":  "kots=3"
+    },
+    {
+        "Test":  "KOT idempotency no duplicate",
+        "Pass":  true,
+        "Detail":  ""
+    },
+    {
+        "Test":  "POS settlement",
+        "Pass":  true,
+        "Detail":  "payment+invoice"
+    },
+    {
+        "Test":  "Table 2 free after settle",
+        "Pass":  true,
+        "Detail":  "status=free"
+    },
+    {
+        "Test":  "Settlement idempotency",
+        "Pass":  true,
+        "Detail":  ""
+    },
+    {
+        "Test":  "Cancel order frees table",
+        "Pass":  true,
+        "Detail":  "status=free"
+    },
+    {
+        "Test":  "Cashier discount denied",
+        "Pass":  true,
+        "Detail":  "denied (403)"
+    },
+    {
+        "Test":  "Owner discount allowed",
+        "Pass":  true,
+        "Detail":  ""
+    },
+    {
+        "Test":  "Reports sales endpoint",
+        "Pass":  true,
+        "Detail":  "revenue=6814.5"
+    },
+    {
+        "Test":  "Operational audit attribution",
+        "Pass":  true,
+        "Detail":  "bill_modified"
+    },
+    {
+        "Test":  "IDOR random order denied",
+        "Pass":  true,
+        "Detail":  "denied (404)"
+    }
+]

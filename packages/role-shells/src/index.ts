@@ -62,6 +62,7 @@ export function getAppLoginUrl(app: StaffAppId, returnTo?: string): string {
 /** Owner / back-office console (operations-web) */
 export const OPERATIONS_MODULES: OperationsModule[] = [
   { id: "overview", label: "Overview", href: "/overview", roles: ["owner", "manager"], pathPrefix: "/overview" },
+  { id: "setup", label: "Setup", href: "/setup", roles: ["owner", "manager"], pathPrefix: "/setup" },
   { id: "live-orders", label: "Live Orders", href: "/live-orders", roles: ["owner", "manager"], pathPrefix: "/live-orders" },
   { id: "orders", label: "Orders", href: "/orders", roles: ["owner", "manager"], pathPrefix: "/orders" },
   {
@@ -175,7 +176,7 @@ export const ROLE_SHELLS: Record<UserRole, RoleShell> = {
   chef: {
     role: "chef",
     appName: "Kaana Kitchens KDS",
-    entryRoute: "/station",
+    entryRoute: "/board",
     nav: [
       { id: "board", label: "Ticket Board", href: "/board" },
       { id: "aggregate", label: "Rush View", href: "/aggregate" },
@@ -229,10 +230,158 @@ export function usesPosApp(role: UserRole): boolean {
 }
 
 export function getNavForRoles(roles: UserRole[]): NavItem[] {
+  return getNavForRolesWithCapabilities(roles, null);
+}
+
+type ModuleKey =
+  | "pos"
+  | "kds"
+  | "captain"
+  | "inventory"
+  | "procurement"
+  | "payroll"
+  | "finance"
+  | "crm"
+  | "reservations"
+  | "reports"
+  | "devices"
+  | "developer";
+
+type FeatureEntitlementKey =
+  | "inventory.stock_transfer"
+  | "procurement.purchase_orders"
+  | "finance.general_ledger"
+  | "payroll.run";
+
+export const OPERATIONS_MODULE_CAPABILITY_MAP: Partial<Record<string, ModuleKey>> = {
+  payroll: "payroll",
+  finance: "finance",
+  reservations: "reservations",
+  customers: "crm",
+  reports: "reports",
+  devices: "devices",
+  pos_store: "inventory",
+  menu: "pos",
+  orders: "pos",
+  "live-orders": "pos",
+};
+
+/** Nav items hidden at lower operating-mode presentation depths (not module-gated). */
+export const LOW_DEPTH_NAV_IDS = new Set(["support", "outlets"]);
+
+export interface OperationsRouteGuard {
+  pathPrefix: string;
+  label: string;
+  moduleKey?: ModuleKey;
+  featureKey?: FeatureEntitlementKey;
+}
+
+/** Route guards — most specific prefixes first when matching. */
+export const OPERATIONS_ROUTE_GUARDS: OperationsRouteGuard[] = [
+  { pathPrefix: "/inventory/transfers", label: "Stock transfers", moduleKey: "inventory", featureKey: "inventory.stock_transfer" },
+  { pathPrefix: "/inventory", label: "Inventory", moduleKey: "inventory" },
+  { pathPrefix: "/purchases", label: "Purchases", moduleKey: "procurement" },
+  { pathPrefix: "/finance", label: "Finance", moduleKey: "finance" },
+  { pathPrefix: "/payroll", label: "Payroll", moduleKey: "payroll" },
+  { pathPrefix: "/devices", label: "Devices", moduleKey: "devices" },
+  { pathPrefix: "/reports", label: "Reports", moduleKey: "reports" },
+  { pathPrefix: "/reservations", label: "Reservations", moduleKey: "reservations" },
+  { pathPrefix: "/customers", label: "Customers", moduleKey: "crm" },
+  { pathPrefix: "/menu", label: "Menu", moduleKey: "pos" },
+  { pathPrefix: "/orders", label: "Orders", moduleKey: "pos" },
+  { pathPrefix: "/live-orders", label: "Live orders", moduleKey: "pos" },
+];
+
+export interface CapabilityNavContext {
+  modules: Partial<Record<ModuleKey, boolean>>;
+  features?: Partial<Record<FeatureEntitlementKey, boolean>>;
+  navDepth?: number;
+}
+
+export type RouteAccessBlockedReason = "role" | "module" | "feature" | "capabilities_unavailable";
+
+export interface RouteAccessResult {
+  allowed: boolean;
+  blockedReason?: RouteAccessBlockedReason;
+  featureLabel?: string;
+}
+
+export function findOperationsRouteGuard(pathname: string): OperationsRouteGuard | undefined {
+  return OPERATIONS_ROUTE_GUARDS.filter(
+    (guard) => pathname === guard.pathPrefix || pathname.startsWith(`${guard.pathPrefix}/`),
+  ).sort((a, b) => b.pathPrefix.length - a.pathPrefix.length)[0];
+}
+
+export function resolveOperationsRouteAccess(
+  pathname: string,
+  roles: UserRole[],
+  capabilities: CapabilityNavContext | null,
+): RouteAccessResult {
+  if (!canAccessRoute(roles, pathname)) {
+    return { allowed: false, blockedReason: "role" };
+  }
+
+  const guard = findOperationsRouteGuard(pathname);
+  if (!guard) return { allowed: true };
+
+  if (!capabilities) {
+    return {
+      allowed: false,
+      blockedReason: "capabilities_unavailable",
+      featureLabel: guard.label,
+    };
+  }
+
+  if (guard.moduleKey && capabilities.modules[guard.moduleKey] === false) {
+    return { allowed: false, blockedReason: "module", featureLabel: guard.label };
+  }
+
+  if (guard.featureKey && capabilities.features?.[guard.featureKey] !== true) {
+    return { allowed: false, blockedReason: "feature", featureLabel: guard.label };
+  }
+
+  return { allowed: true };
+}
+
+export function isModuleEnabledInContext(
+  capabilities: CapabilityNavContext | null,
+  moduleKey: ModuleKey,
+): boolean {
+  if (!capabilities) return false;
+  return capabilities.modules[moduleKey] !== false;
+}
+
+export function isFeatureEnabledInContext(
+  capabilities: CapabilityNavContext | null,
+  featureKey: FeatureEntitlementKey,
+): boolean {
+  if (!capabilities) return false;
+  return capabilities.features?.[featureKey] === true;
+}
+
+export function getNavForRolesWithCapabilities(
+  roles: UserRole[],
+  capabilities: CapabilityNavContext | null,
+): NavItem[] {
   const seen = new Set<string>();
   const items: NavItem[] = [];
+  const navDepth = capabilities?.navDepth ?? 4;
+
   for (const mod of OPERATIONS_MODULES) {
+    // Presentation depth only — never hide enabled capability modules (Step 4).
+    if (navDepth <= 2 && LOW_DEPTH_NAV_IDS.has(mod.id)) {
+      continue;
+    }
+
+    const moduleKey = OPERATIONS_MODULE_CAPABILITY_MAP[mod.id];
+    if (capabilities && moduleKey && capabilities.modules[moduleKey] === false) {
+      continue;
+    }
+
     if (mod.id === "pos_store") {
+      if (capabilities && capabilities.modules.inventory === false) {
+        continue;
+      }
       if (mod.roles.some((r) => roles.includes(r)) && !seen.has(mod.id)) {
         seen.add(mod.id);
         items.push({ id: mod.id, label: mod.label, href: mod.href, externalPos: true });
@@ -252,6 +401,20 @@ export function getNavForRoles(roles: UserRole[]): NavItem[] {
     }
   }
   return items;
+}
+
+export function getPosNavForRolesWithCapabilities(
+  roles: UserRole[],
+  capabilities: CapabilityNavContext | null,
+): NavItem[] {
+  const base = getPosNavForRoles(roles);
+  if (!capabilities) return base;
+  return base.filter((item) => {
+    if (item.id === "inventory" || item.id === "purchases") {
+      return capabilities.modules.inventory !== false && capabilities.modules.procurement !== false;
+    }
+    return capabilities.modules.pos !== false;
+  });
 }
 
 export function getPosNavForRoles(roles: UserRole[]): NavItem[] {

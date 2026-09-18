@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import { notifyOrderUpdate } from "@kaana/ui";
 import { useCaptainRealtime } from "@/hooks/useCaptainRealtime";
-import { RoleAppShell } from "@/components/RoleAppShell";
+import { RoleAppShell } from "@kaana/ui";
 import { CAPTAIN_TABLE_STYLES, captainPhaseLabel, captainTablePhase } from "@/lib/captain-table-phase";
 import { api, formatInr, logout, resolveOutletId } from "@/lib/api";
 

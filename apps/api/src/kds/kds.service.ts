@@ -1,7 +1,12 @@
 import { Injectable } from "@nestjs/common";
+import type { KOTStatus, OrderStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { EventsGateway } from "../events/events.gateway";
 import { AuditService } from "../audit/audit.service";
+import {
+  operationalAuditMetadata,
+  type AuditActorContext,
+} from "../auth/audit-actor.util";
 
 @Injectable()
 export class KdsService {
@@ -11,9 +16,22 @@ export class KdsService {
     private audit: AuditService,
   ) {}
 
+  private activeQueueWhere(outletId?: string, stationId?: string): Prisma.KOTWhereInput {
+    const orderFilter: Prisma.OrderWhereInput = {
+      status: { notIn: ["cancelled", "voided", "settled"] as OrderStatus[] },
+    };
+    if (outletId) orderFilter.outletId = outletId;
+    const activeStatuses: KOTStatus[] = ["pending", "preparing", "ready"];
+    return {
+      ...(stationId ? { kitchenStationId: stationId } : {}),
+      status: { in: activeStatuses },
+      order: orderFilter,
+    };
+  }
+
   getStationQueue(stationId: string) {
     return this.prisma.kOT.findMany({
-      where: { kitchenStationId: stationId, status: { in: ["pending", "preparing"] } },
+      where: this.activeQueueWhere(undefined, stationId),
       include: {
         order: { include: { table: true } },
         items: { include: { orderItem: true } },
@@ -26,10 +44,7 @@ export class KdsService {
   /** Single-kitchen view: all in-flight tickets for an outlet (all stations). */
   getOutletQueue(outletId: string) {
     return this.prisma.kOT.findMany({
-      where: {
-        status: { in: ["pending", "preparing"] },
-        order: { outletId },
-      },
+      where: this.activeQueueWhere(outletId),
       include: {
         order: { include: { table: true } },
         items: { include: { orderItem: true } },
@@ -50,7 +65,7 @@ export class KdsService {
     });
   }
 
-  async markReady(kotId: string, userId?: string) {
+  async markReady(kotId: string, actor?: AuditActorContext) {
     const kot = await this.prisma.kOT.update({
       where: { id: kotId },
       data: { status: "ready", readyAt: new Date() },
@@ -74,11 +89,11 @@ export class KdsService {
       });
     }
 
-    await this.syncOrderKitchenState(kot.orderId, kot, "kot_ready", userId);
+    await this.syncOrderKitchenState(kot.orderId, kot, "kot_ready", actor);
     return kot;
   }
 
-  async markPreparing(kotId: string, userId?: string) {
+  async markPreparing(kotId: string, actor?: AuditActorContext) {
     const kot = await this.prisma.kOT.update({
       where: { id: kotId },
       data: { status: "preparing" },
@@ -102,7 +117,7 @@ export class KdsService {
       });
     }
 
-    await this.syncOrderKitchenState(kot.orderId, kot, "kot_preparing", userId);
+    await this.syncOrderKitchenState(kot.orderId, kot, "kot_preparing", actor);
     return kot;
   }
 
@@ -117,7 +132,7 @@ export class KdsService {
       order: { outletId: string; tableId: string | null; table: { number: string } | null; items: Array<{ kotId: string | null; status: string }> };
     },
     action: "kot_ready" | "kot_preparing",
-    userId?: string,
+    actor?: AuditActorContext,
   ) {
     const items = await this.prisma.orderItem.findMany({ where: { orderId } });
     const firedItems = items.filter((i) => i.kotId);
@@ -149,18 +164,18 @@ export class KdsService {
     if (org) {
       await this.audit.log({
         organizationId: org.brand.organizationId,
-        userId,
+        userId: actor?.authMode === "operational" ? undefined : actor?.userId,
         outletId: kot.order.outletId,
         action,
         entityType: "order",
         entityId: orderId,
-        metadata: {
+        metadata: operationalAuditMetadata(actor, {
           kotId: kot.id,
           kotNumber: kot.kotNumber,
           stationName: kot.kitchenStation.name,
           tableNumber: kot.order.table?.number ?? null,
           itemNames: kot.items.map((i) => i.orderItem.name),
-        },
+        }),
       });
     }
 

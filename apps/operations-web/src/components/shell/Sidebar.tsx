@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getNavForRoles, type NavItem as RoleNavItem } from "@kaana/role-shells";
-import { getUser, logout, type AuthUser } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { getNavForRolesWithCapabilities, type NavItem as RoleNavItem } from "@kaana/role-shells";
+import { getUser, logout } from "@/lib/api";
 import { getRolesForNav } from "@/components/AuthGuard";
+import { useCapabilities } from "@/contexts/CapabilitiesContext";
 import { NavItem } from "./NavItem";
 import { KaanaBrand } from "@kaana/ui";
 import { ChevronDown } from "lucide-react";
@@ -14,19 +15,49 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
+const CONSERVATIVE_MODULES = {
+  pos: false,
+  kds: false,
+  captain: false,
+  inventory: false,
+  procurement: false,
+  payroll: false,
+  finance: false,
+  crm: false,
+  reservations: false,
+  reports: false,
+  devices: false,
+  developer: false,
+};
+
 export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [nav, setNav] = useState<RoleNavItem[]>([]);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [roleLabel, setRoleLabel] = useState("User");
+  const [user, setUser] = useState(getUser());
+  const { capabilities, ready, error } = useCapabilities();
 
   useEffect(() => {
-    setNav(getNavForRoles(getRolesForNav()));
     setUser(getUser());
-    setRoleLabel(getRolesForNav()[0]?.replace("_", " ") ?? "User");
     setMounted(true);
   }, []);
+
+  const roles = getRolesForNav();
+  const navContext = capabilities
+    ? {
+        modules: capabilities.modules,
+        features: capabilities.features,
+        navDepth: capabilities.navDepth,
+      }
+    : error
+      ? { modules: CONSERVATIVE_MODULES, navDepth: 1 }
+      : null;
+
+  const nav = useMemo(
+    () => (ready ? getNavForRolesWithCapabilities(roles, navContext) : []),
+    [roles, navContext, ready],
+  );
+
+  const roleLabel = roles[0]?.replace("_", " ") ?? "User";
 
   const content = (
     <>
@@ -35,8 +66,11 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">
-        {mounted
-          ? nav.map((item) => (
+        {!mounted || !ready
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-10 rounded-lg bg-white/5 animate-pulse mx-1" aria-hidden />
+            ))
+          : nav.map((item: RoleNavItem) => (
               <NavItem
                 key={item.id}
                 href={item.href}
@@ -46,9 +80,6 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                 externalReservations={item.externalReservations}
                 onNavigate={onClose}
               />
-            ))
-          : Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-10 rounded-lg bg-white/5 animate-pulse mx-1" aria-hidden />
             ))}
       </nav>
 

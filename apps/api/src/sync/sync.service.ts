@@ -97,6 +97,28 @@ export class SyncService {
         });
       }
     }
+    if (event.entityType === "order_item" && event.action === "create") {
+      const payload = event.payload as Record<string, unknown>;
+      const existing = await this.prisma.orderItem.findFirst({
+        where: { id: event.entityId },
+      });
+      if (!existing && payload.orderId && payload.menuItemId) {
+        const qty = (payload.quantity as number) ?? 1;
+        const unitPrice = Number(payload.unitPrice ?? 0);
+        await this.prisma.orderItem.create({
+          data: {
+            id: event.entityId,
+            orderId: payload.orderId as string,
+            menuItemId: payload.menuItemId as string,
+            name: (payload.name as string) ?? "Synced item",
+            quantity: qty,
+            unitPrice,
+            totalPrice: unitPrice * qty,
+            status: "pending",
+          },
+        });
+      }
+    }
   }
 
   async getPending(clientId: string) {

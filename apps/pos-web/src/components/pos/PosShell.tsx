@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { KaanaBrand } from "@kaana/ui";
-import { getPosNavForRoles, OPERATIONS_WEB_URL, resolveAllRoles, resolvePrimaryRole, type UserRole } from "@kaana/role-shells";
+import { getPosNavForRolesWithCapabilities, OPERATIONS_WEB_URL, resolveAllRoles, resolvePrimaryRole, type UserRole } from "@kaana/role-shells";
 import {
   api,
   fetchTerminalMe,
@@ -16,6 +16,18 @@ import {
   logoutSession,
 } from "@/lib/api";
 
+function readPosCapabilities() {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem("capabilities");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { modules?: Record<string, boolean> };
+    return { modules: parsed.modules ?? {} };
+  } catch {
+    return null;
+  }
+}
+
 export function PosShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const user = getUser();
@@ -26,16 +38,17 @@ export function PosShell({ children }: { children: React.ReactNode }) {
     : operationalStaff
       ? [operationalStaff.role as UserRole]
       : [];
-  const nav = getPosNavForRoles(roles);
   const primary = user ? resolvePrimaryRole(user) : operationalStaff?.role ?? "biller";
   const showOwnerLink = primary === "owner" || primary === "manager";
   const [outletName, setOutletName] = useState("");
   const [terminalLabel, setTerminalLabel] = useState("Counter terminal");
+  const [nav, setNav] = useState(() => getPosNavForRolesWithCapabilities(roles, readPosCapabilities()));
   const actingName =
     operationalStaff?.displayName ??
     (user ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "Staff");
 
   useEffect(() => {
+    setNav(getPosNavForRolesWithCapabilities(roles, readPosCapabilities()));
     const outletId = getOutletId();
     if (outletId) {
       api<{ name: string }>(`/outlets/${outletId}`)

@@ -11,6 +11,7 @@ type TerminalOption = {
   id: string;
   name: string;
   code: string;
+  deviceType?: string;
   isRegistered?: boolean;
   isActive?: boolean;
   isMaster?: boolean;
@@ -68,7 +69,9 @@ export function PosTerminalSetup({ onRegistered }: { onRegistered: () => void })
     setSelectedOutletId(resolvedOutletId);
 
     const outlet = await loginFetchOutlet(resolvedOutletId, data.accessToken);
-    const list = (outlet.terminals ?? []).filter((t) => t.isActive !== false);
+    const list = (outlet.terminals ?? []).filter(
+      (t) => t.isActive !== false && (t.deviceType === "pos" || !t.deviceType),
+    );
     if (list.length === 0) {
       throw new Error("No POS counter configured for this outlet yet.");
     }
@@ -80,6 +83,7 @@ export function PosTerminalSetup({ onRegistered }: { onRegistered: () => void })
   return (
     <div className="space-y-4 w-full max-w-md">
       <StaffLoginForm
+        layout="card"
         appName="Kaana Kitchens POS"
         badge="Counter setup"
         tagline="One-time manager sign-in to connect this device"

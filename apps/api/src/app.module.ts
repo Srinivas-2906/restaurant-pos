@@ -6,6 +6,8 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/guards";
 import { RolesGuard } from "./auth/roles.guard";
+import { PermissionsGuard } from "./auth/permissions.guard";
+import { OperationalSessionGuard } from "./auth/operational-session.guard";
 import { TerminalsModule } from "./terminals/terminals.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { OutletsModule } from "./outlets/outlets.module";
@@ -35,6 +37,9 @@ import { ApprovalsModule } from "./approvals/approvals.module";
 import { WaitlistModule } from "./waitlist/waitlist.module";
 import { PayrollModule } from "./payroll/payroll.module";
 import { HrModule } from "./hr/hr.module";
+import { CapabilitiesModule } from "./capabilities/capabilities.module";
+import { PlatformModule } from "./platform/platform.module";
+import { AccountingModule } from "./accounting/accounting.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -72,11 +77,16 @@ import { HealthController } from "./health.controller";
     ApprovalsModule,
     PayrollModule,
     HrModule,
+    CapabilitiesModule,
+    PlatformModule,
+    AccountingModule,
   ],
   controllers: [HealthController],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: OperationalSessionGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })

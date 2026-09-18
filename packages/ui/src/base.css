@@ -34,6 +34,19 @@ svg {
   }
 }
 
+input,
+select,
+textarea {
+  color: rgb(17 24 39);
+  caret-color: rgb(17 24 39);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgb(156 163 175);
+  opacity: 1;
+}
+
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }

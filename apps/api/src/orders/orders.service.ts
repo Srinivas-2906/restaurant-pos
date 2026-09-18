@@ -4,6 +4,8 @@ import { EventsGateway } from "../events/events.gateway";
 import { InventoryService } from "../inventory/inventory.service";
 import { AuditService } from "../audit/audit.service";
 import { PrintBridgeService } from "../print/print-bridge.service";
+import { AccountingService } from "../accounting/accounting.service";
+import { AccountingPostingQueueService } from "../accounting/accounting-posting-queue.service";
 import { createAggregatorAdapter } from "@kaana/integrations";
 import {
   ACTION_PERMISSIONS,
@@ -15,10 +17,11 @@ import {
   type OrderType,
 } from "@kaana/shared-types";
 import { Decimal } from "@prisma/client/runtime/library";
-
-const ACTIVE_ORDER_STATUSES = [
-  "draft", "open", "kot_fired", "preparing", "ready", "served", "billed",
-] as const;
+import {
+  operationalAuditMetadata,
+  type AuditActorContext,
+} from "../auth/audit-actor.util";
+import { ACTIVE_ORDER_STATUSES } from "./order.constants";
 
 @Injectable()
 export class OrdersService {
@@ -28,6 +31,8 @@ export class OrdersService {
     private inventory: InventoryService,
     private audit: AuditService,
     private printBridge: PrintBridgeService,
+    private accounting: AccountingService,
+    private accountingQueue: AccountingPostingQueueService,
   ) {}
 
   private async nextOrderNumber(outletId: string): Promise<string> {
@@ -38,7 +43,7 @@ export class OrdersService {
   async create(data: {
     outletId: string; terminalId?: string; tableId?: string; customerId?: string;
     type?: string; source?: string; fulfilment?: string; guestCount?: number; notes?: string;
-    createdById?: string; reservationId?: string; actorRole?: string;
+    createdById?: string; reservationId?: string; actorRole?: string; actor?: AuditActorContext;
   }) {
     const orderType = (data.type ?? "dine_in") as OrderType;
     let source = (data.source ?? "dine_in") as OrderSource;
@@ -79,8 +84,155 @@ export class OrdersService {
       });
     }
 
+    const org = await this.prisma.outlet.findUnique({
+      where: { id: data.outletId },
+      select: { brand: { select: { organizationId: true } } },
+    });
+    if (org) {
+      await this.audit.log({
+        organizationId: org.brand.organizationId,
+        userId: data.actor?.authMode === "operational" ? undefined : data.createdById,
+        outletId: data.outletId,
+        action: "bill_modified",
+        entityType: "order",
+        entityId: order.id,
+        metadata: operationalAuditMetadata(data.actor, {
+          event: "order_created",
+          orderNumber: order.orderNumber,
+          source: order.source,
+          type: order.type,
+          tableId: data.tableId ?? null,
+        }),
+      });
+    }
+
     this.events.emitOrderUpdate(data.outletId, order);
     return order;
+  }
+
+  async createWithOfflineProvenance(data: {
+    outletId: string;
+    terminalId?: string;
+    tableId?: string;
+    type?: string;
+    source?: string;
+    guestCount?: number;
+    notes?: string;
+    clientOrderId: string;
+    occurredAt?: string;
+    createdByStaffProfileId?: string;
+    actor?: AuditActorContext;
+  }) {
+    const orderType = (data.type ?? "takeaway") as OrderType;
+    const source = (data.source ?? "pos") as OrderSource;
+    const fulfilment = inferFulfilment(orderType, source);
+    const orderNumber = await this.nextOrderNumber(data.outletId);
+    const createdAt = data.occurredAt ? new Date(data.occurredAt) : new Date();
+
+    const order = await this.prisma.order.create({
+      data: {
+        outletId: data.outletId,
+        terminalId: data.terminalId,
+        tableId: data.tableId,
+        orderNumber,
+        type: orderType as never,
+        source: source as never,
+        fulfilment: fulfilment as never,
+        guestCount: data.guestCount ?? 1,
+        notes: data.notes,
+        status: "open",
+        clientOrderId: data.clientOrderId,
+        createdAt,
+      },
+      include: { items: true, table: true, createdBy: { select: { id: true, firstName: true, lastName: true } } },
+    });
+
+    if (data.tableId) {
+      await this.prisma.table.update({
+        where: { id: data.tableId },
+        data: { status: "seated" },
+      });
+    }
+
+    const org = await this.prisma.outlet.findUnique({
+      where: { id: data.outletId },
+      select: { brand: { select: { organizationId: true } } },
+    });
+    if (org) {
+      await this.audit.log({
+        organizationId: org.brand.organizationId,
+        outletId: data.outletId,
+        action: "bill_modified",
+        entityType: "order",
+        entityId: order.id,
+        metadata: operationalAuditMetadata(data.actor, {
+          event: "order_created_offline_sync",
+          orderNumber: order.orderNumber,
+          clientOrderId: data.clientOrderId,
+          occurredAt: data.occurredAt,
+          source: order.source,
+          type: order.type,
+        }),
+      });
+    }
+
+    this.events.emitOrderUpdate(data.outletId, order);
+    return order;
+  }
+
+  async addItemFromSnapshot(orderId: string, data: {
+    localItemId?: string;
+    menuItemId: string;
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    taxAmount: number;
+    variantId?: string;
+    notes?: string;
+    menuItemUpdatedAt?: string;
+  }) {
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: { items: true },
+    });
+
+    if (!["draft", "open", "kot_fired", "preparing", "ready", "served", "billed"].includes(order.status)) {
+      throw new BadRequestException("Cannot modify order in current status");
+    }
+
+    if (data.localItemId) {
+      const existingByLocal = order.items.find((i) => i.id === data.localItemId);
+      if (existingByLocal) return existingByLocal;
+    }
+
+    const quantity = data.quantity;
+    const lineTotal = data.unitPrice * quantity;
+    const totalPrice = lineTotal + data.taxAmount;
+
+    const item = await this.prisma.orderItem.create({
+      data: {
+        ...(data.localItemId ? { id: data.localItemId } : {}),
+        orderId,
+        menuItemId: data.menuItemId,
+        variantId: data.variantId,
+        name: data.name,
+        quantity,
+        unitPrice: data.unitPrice,
+        taxAmount: data.taxAmount,
+        totalPrice,
+        notes: data.notes,
+        status: "pending",
+      },
+    });
+
+    if (["kot_fired", "billed", "served"].includes(order.status)) {
+      await this.prisma.order.update({ where: { id: orderId }, data: { status: "open" } });
+    }
+
+    await this.recalculateOrder(orderId);
+    const updated = await this.findOne(orderId);
+    this.events.emitOrderUpdate(order.outletId, updated);
+    return item;
   }
 
   async createFromReservation(data: {
@@ -243,7 +395,7 @@ export class OrdersService {
     });
   }
 
-  async fireKOT(orderId: string, userId?: string) {
+  async fireKOT(orderId: string, actor?: AuditActorContext) {
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id: orderId },
       include: {
@@ -258,6 +410,10 @@ export class OrdersService {
       throw new BadRequestException(
         `Cannot fire KOT: items missing kitchen station — ${unassigned.map((i) => i.name).join(", ")}`,
       );
+    }
+
+    if (pendingItems.length === 0) {
+      return [];
     }
 
     const itemsByStation = new Map<string, typeof pendingItems>();
@@ -302,18 +458,18 @@ export class OrdersService {
       if (org) {
         await this.audit.log({
           organizationId: org.brand.organizationId,
-          userId,
+          userId: actor?.authMode === "operational" ? undefined : actor?.userId,
           outletId: order.outletId,
           action: "kot_fired",
           entityType: "order",
           entityId: orderId,
-          metadata: {
+          metadata: operationalAuditMetadata(actor, {
             kotId: kot.id,
             kotNumber: kot.kotNumber,
             stationName: kot.kitchenStation.name,
             tableNumber: order.table?.number ?? null,
             itemNames: items.map((i) => i.name),
-          },
+          }),
         });
       }
     }
@@ -364,7 +520,7 @@ export class OrdersService {
     return kots;
   }
 
-  async markItemServed(orderId: string, itemId: string, userId?: string) {
+  async markItemServed(orderId: string, itemId: string, actor?: AuditActorContext) {
     const item = await this.prisma.orderItem.findFirstOrThrow({
       where: { id: itemId, orderId },
       include: { order: { include: { table: true } } },
@@ -428,17 +584,17 @@ export class OrdersService {
     if (org) {
       await this.audit.log({
         organizationId: org.brand.organizationId,
-        userId,
+        userId: actor?.authMode === "operational" ? undefined : actor?.userId,
         outletId: order.outletId,
         action: "item_served",
         entityType: "order",
         entityId: orderId,
-        metadata: {
+        metadata: operationalAuditMetadata(actor, {
           itemId,
           itemName: item.name,
           quantity: item.quantity,
           tableNumber: order.table?.number ?? null,
-        },
+        }),
       });
     }
 
@@ -524,7 +680,7 @@ export class OrdersService {
     return { bill, order: updated };
   }
 
-  async requestBill(orderId: string, userId?: string) {
+  async requestBill(orderId: string, actor?: AuditActorContext) {
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id: orderId },
       include: { items: true, table: true },
@@ -542,7 +698,7 @@ export class OrdersService {
       where: { id: orderId },
       data: {
         billRequestedAt: now,
-        billRequestedByUserId: userId ?? null,
+        billRequestedByUserId: actor?.authMode === "operational" ? null : (actor?.userId ?? null),
       },
     });
 
@@ -554,6 +710,27 @@ export class OrdersService {
     }
 
     const updated = await this.findOne(orderId);
+
+    const org = await this.prisma.outlet.findUnique({
+      where: { id: order.outletId },
+      select: { brand: { select: { organizationId: true } } },
+    });
+    if (org) {
+      await this.audit.log({
+        organizationId: org.brand.organizationId,
+        userId: actor?.authMode === "operational" ? undefined : actor?.userId,
+        outletId: order.outletId,
+        action: "bill_modified",
+        entityType: "order",
+        entityId: orderId,
+        metadata: operationalAuditMetadata(actor, {
+          event: "bill_requested",
+          tableNumber: order.table?.number ?? null,
+          orderNumber: order.orderNumber,
+        }),
+      });
+    }
+
     this.events.emitOrderUpdate(order.outletId, {
       type: "bill_requested",
       orderId,
@@ -571,28 +748,69 @@ export class OrdersService {
   async settle(orderId: string, data: {
     payments: Array<{ method: string; amount: number; reference?: string }>;
     discountAmount?: number; loyaltyPointsUsed?: number; customerPhone?: string;
-  }, actor?: { role?: string; permissions?: string[] }) {
+    idempotencyKey?: string;
+    occurredAt?: string;
+  }, context?: { role?: string; permissions?: string[]; actor?: AuditActorContext }) {
+    if (data.idempotencyKey) {
+      const prior = await this.prisma.posSyncCommand.findFirst({
+        where: {
+          idempotencyKey: data.idempotencyKey,
+          operationType: "SETTLE",
+          status: "acked",
+        },
+      });
+      if (prior?.serverEntityId) {
+        const settled = await this.findOne(prior.serverEntityId);
+        const invoice = await this.prisma.invoice.findUnique({ where: { orderId: prior.serverEntityId } });
+        return { order: settled, invoice: invoice ?? undefined };
+      }
+    }
+
     const order = await this.prisma.order.findUniqueOrThrow({
       where: { id: orderId },
       include: { items: { include: { menuItem: true } }, outlet: true },
     });
 
-    if (actor?.role === "captain") {
+    if (context?.role === "captain") {
       const billingMode = getOutletBillingMode(order.outlet.settings);
-      const perms = actor.permissions ?? [];
+      const perms = context.permissions ?? [];
       if (billingMode !== "captain_can_settle" || !hasActionPermission(perms, ACTION_PERMISSIONS.settle_bill)) {
         throw new ForbiddenException("Captain cannot settle bills for this outlet");
       }
     }
 
     if (order.status === "settled") {
-      throw new BadRequestException("Order is already settled");
+      const settled = await this.findOne(orderId);
+      const invoice = await this.prisma.invoice.findUnique({ where: { orderId } });
+      const payments = await this.prisma.payment.findMany({ where: { orderId, status: "completed" } });
+      const org = await this.prisma.outlet.findUnique({
+        where: { id: order.outletId },
+        select: { brand: { select: { organizationId: true } } },
+      });
+      if (invoice && org && payments.length) {
+        await this.enqueueOrderSettlementAccounting(
+          org.brand.organizationId,
+          order.outletId,
+          orderId,
+          invoice,
+          payments.map((p) => ({ method: p.method, amount: Number(p.amount) })),
+        );
+      }
+      return { order: settled, invoice: invoice ?? undefined };
     }
 
     const discount = data.discountAmount ?? 0;
+    if (discount > 0 && context) {
+      const perms = context.permissions ?? [];
+      const isOwner = context.role === "owner";
+      if (!isOwner && !hasActionPermission(perms, ACTION_PERMISSIONS.apply_discount)) {
+        throw new ForbiddenException("Discount permission required");
+      }
+    }
     const totalPaid = data.payments.reduce((s, p) => s + p.amount, 0);
+    const invoiceTotals = this.computeInvoiceTotals(order, discount);
 
-    if (totalPaid < Number(order.totalAmount) - discount) {
+    if (totalPaid + 0.001 < invoiceTotals.totalAmount) {
       throw new BadRequestException("Insufficient payment amount");
     }
 
@@ -620,12 +838,16 @@ export class OrdersService {
     const invoice = await this.generateInvoice(order, discount);
 
     if (data.customerPhone) {
-      await this.upsertCustomer(order.outletId, data.customerPhone, Number(order.totalAmount) - discount);
+      await this.upsertCustomer(order.outletId, data.customerPhone, invoiceTotals.totalAmount);
     }
 
     await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: "settled", discountAmount: discount, settledAt: new Date() },
+      data: {
+        status: "settled",
+        discountAmount: discount,
+        settledAt: data.occurredAt ? new Date(data.occurredAt) : new Date(),
+      },
     });
 
     if (order.tableId) {
@@ -648,18 +870,90 @@ export class OrdersService {
     this.events.emitOrderUpdate(order.outletId, settled);
 
     const org = await this.prisma.outlet.findUnique({ where: { id: order.outletId }, select: { brand: { select: { organizationId: true } } } });
+
+    await this.enqueueOrderSettlementAccounting(
+      org!.brand.organizationId,
+      order.outletId,
+      orderId,
+      invoice,
+      data.payments,
+    );
+
     if (org) {
       await this.audit.log({
         organizationId: org.brand.organizationId,
+        userId: context?.actor?.authMode === "operational" ? undefined : context?.actor?.userId,
         outletId: order.outletId,
         action: discount > 0 ? "discount_applied" : "bill_modified",
         entityType: "order",
         entityId: orderId,
-        metadata: { discount, totalPaid, invoiceNumber: invoice.invoiceNumber },
+        metadata: operationalAuditMetadata(context?.actor, {
+          event: "settled",
+          discount,
+          totalPaid,
+          invoiceNumber: invoice.invoiceNumber,
+        }),
       });
     }
 
     return { order: settled, invoice };
+  }
+
+  private roundInr(value: number): number {
+    return Math.round(value * 100) / 100;
+  }
+
+  private async enqueueOrderSettlementAccounting(
+    organizationId: string,
+    outletId: string,
+    orderId: string,
+    invoice: {
+      taxableAmount: Decimal;
+      cgstAmount: Decimal;
+      sgstAmount: Decimal;
+      igstAmount?: Decimal | null;
+      totalAmount: Decimal;
+    },
+    payments: Array<{ method: string; amount: number }>,
+  ) {
+    const payload = {
+      organizationId,
+      outletId,
+      orderId,
+      invoice: {
+        taxableAmount: invoice.taxableAmount,
+        cgstAmount: invoice.cgstAmount,
+        sgstAmount: invoice.sgstAmount,
+        igstAmount: invoice.igstAmount ?? undefined,
+        totalAmount: invoice.totalAmount,
+      },
+      payments,
+    };
+    await this.accountingQueue.runOrEnqueue({
+      organizationId,
+      outletId,
+      sourceType: "order_settlement",
+      sourceId: orderId,
+      idempotencyKey: `sales:${orderId}`,
+      payload,
+      execute: () => this.accounting.postOrderSettlementAccounting(payload),
+      swallowError: true,
+    });
+  }
+
+  /** Tax-exclusive invoice math: discount reduces taxable base and tax proportionally. */
+  computeInvoiceTotals(
+    order: { subtotal: Decimal; taxAmount: Decimal },
+    discount: number,
+  ) {
+    const subtotal = Number(order.subtotal);
+    const taxableAmount = this.roundInr(Math.max(0, subtotal - discount));
+    const taxRatio = subtotal > 0 ? taxableAmount / subtotal : 0;
+    const taxAmount = this.roundInr(Number(order.taxAmount) * taxRatio);
+    const cgstAmount = this.roundInr(taxAmount / 2);
+    const sgstAmount = this.roundInr(taxAmount - cgstAmount);
+    const totalAmount = this.roundInr(taxableAmount + taxAmount);
+    return { subtotal, discount, taxableAmount, taxAmount, cgstAmount, sgstAmount, totalAmount };
   }
 
   private async generateInvoice(order: { id: string; outletId: string; subtotal: Decimal; taxAmount: Decimal; totalAmount: Decimal; outlet: { gstin: string | null } }, discount: number) {
@@ -670,18 +964,17 @@ export class OrdersService {
       create: { outletId: order.outletId, year, lastNumber: 1 },
     });
 
-    const taxableAmount = Number(order.subtotal) - discount;
-    const taxAmount = Number(order.taxAmount);
+    const totals = this.computeInvoiceTotals(order, discount);
 
     return this.prisma.invoice.create({
       data: {
         orderId: order.id,
         invoiceNumber: `${seq.prefix}-${year}-${String(seq.lastNumber).padStart(5, "0")}`,
         gstin: order.outlet.gstin,
-        taxableAmount,
-        cgstAmount: taxAmount / 2,
-        sgstAmount: taxAmount / 2,
-        totalAmount: taxableAmount + taxAmount,
+        taxableAmount: totals.taxableAmount,
+        cgstAmount: totals.cgstAmount,
+        sgstAmount: totals.sgstAmount,
+        totalAmount: totals.totalAmount,
       },
     });
   }
@@ -813,12 +1106,24 @@ export class OrdersService {
     });
   }
 
-  async cancelOrder(orderId: string, reason?: string) {
-    const order = await this.prisma.order.findUniqueOrThrow({ where: { id: orderId } });
+  async cancelOrder(orderId: string, reason?: string, actor?: AuditActorContext) {
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: { items: true, table: true },
+    });
 
     if (["settled", "cancelled", "voided"].includes(order.status)) {
       throw new BadRequestException("Order cannot be cancelled in current status");
     }
+
+    for (const item of order.items) {
+      await this.inventory.releaseCommit(order.outletId, item.id, false);
+    }
+
+    await this.prisma.kOT.updateMany({
+      where: { orderId, status: { notIn: ["served", "cancelled"] } },
+      data: { status: "cancelled" },
+    });
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
@@ -831,9 +1136,46 @@ export class OrdersService {
       include: { items: true, table: true },
     });
 
+    if (order.tableId) {
+      const otherActive = await this.prisma.order.count({
+        where: {
+          tableId: order.tableId,
+          id: { not: orderId },
+          status: { in: [...ACTIVE_ORDER_STATUSES] },
+        },
+      });
+      if (otherActive === 0) {
+        await this.prisma.table.update({
+          where: { id: order.tableId },
+          data: { status: "free" },
+        });
+      }
+    }
+
     if (order.externalOrderId && ["swiggy", "zomato", "website"].includes(order.source)) {
       const adapter = createAggregatorAdapter(order.source);
       await adapter.acknowledgeOrder(order.externalOrderId, "rejected");
+    }
+
+    const org = await this.prisma.outlet.findUnique({
+      where: { id: order.outletId },
+      select: { brand: { select: { organizationId: true } } },
+    });
+    if (org) {
+      await this.audit.log({
+        organizationId: org.brand.organizationId,
+        userId: actor?.authMode === "operational" ? undefined : actor?.userId,
+        outletId: order.outletId,
+        action: "order_void",
+        entityType: "order",
+        entityId: orderId,
+        metadata: operationalAuditMetadata(actor, {
+          event: "order_cancelled",
+          reason: reason ?? null,
+          tableId: order.tableId,
+          tableNumber: order.table?.number ?? null,
+        }),
+      });
     }
 
     this.events.emitOrderUpdate(order.outletId, {
@@ -842,6 +1184,7 @@ export class OrdersService {
       source: order.source,
       externalOrderId: order.externalOrderId,
       orderStatus: "cancelled",
+      tableId: order.tableId,
     });
 
     return updated;

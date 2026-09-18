@@ -1,0 +1,16 @@
+{
+  "apiUrlEmulator": "http://10.0.2.2:4000/api",
+  "apiUrlHost": "http://localhost:4000/api",
+  "apiUrlLan": "http://192.168.31.57:4000/api",
+  "manualSteps": [
+    "Run scripts/step15.1a-prepare.ps1 to generate a real activation code (writes step15.1a-session.json, gitignored)",
+    "Set Up Restaurant Device on tablet",
+    "Sign in EMP001 / 1111",
+    "See docs/validation/step15/TESTING.md"
+  ],
+  "eligibleStaff": ["EMP001", "EMP004"],
+  "terminalId": "<from-prepare-script>",
+  "adbReverse": ["tcp:4000 tcp:4000", "tcp:8081 tcp:8081"],
+  "activationCode": "XXXXXXXX",
+  "activationCodeDisplay": "XXXX-XXXX"
+}

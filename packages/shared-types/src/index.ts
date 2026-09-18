@@ -5,6 +5,19 @@ export const LoginSchema = z.object({
   password: z.string().min(6),
 });
 
+export const SignupSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  firstName: z.string().min(1),
+  lastName: z.string().optional(),
+  restaurantName: z.string().min(2),
+  restaurantSlug: z.string().min(2).regex(/^[a-z0-9-]+$/),
+  outletName: z.string().min(2).default("Main Outlet"),
+  outletCode: z.string().min(2).regex(/^[A-Z0-9_-]+$/i).default("MAIN"),
+  phone: z.string().optional(),
+  gstin: z.string().optional(),
+});
+
 export const CreateOrganizationSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
@@ -80,6 +93,8 @@ export const SettleOrderSchema = z.object({
   discountAmount: z.number().min(0).default(0),
   loyaltyPointsUsed: z.number().int().min(0).default(0),
   customerPhone: z.string().optional(),
+  idempotencyKey: z.string().min(8).max(128).optional(),
+  occurredAt: z.string().datetime().optional(),
 });
 
 export const ReservationSourceEnum = z.enum([
@@ -174,6 +189,7 @@ export const SyncEventSchema = z.object({
 });
 
 export type LoginDto = z.infer<typeof LoginSchema>;
+export type SignupDto = z.infer<typeof SignupSchema>;
 export type CreateOrganizationDto = z.infer<typeof CreateOrganizationSchema>;
 export type CreateOutletDto = z.infer<typeof CreateOutletSchema>;
 export type CreateUserDto = z.infer<typeof CreateUserSchema>;
@@ -191,6 +207,7 @@ export interface JwtPayload {
   organizationId: string;
   outletId?: string;
   role?: string;
+  roles?: string[];
   authMode?: "email" | "operational";
   staffProfileId?: string;
   userId?: string;
@@ -222,6 +239,7 @@ export interface ApiResponse<T = unknown> {
 export * from "./inventory";
 export * from "./permissions";
 export * from "./orders";
+export * from "./capabilities";
 
 export const WS_CHANNELS = {
   outletOrders: (outletId: string) => `outlet:${outletId}:orders`,
@@ -229,4 +247,5 @@ export const WS_CHANNELS = {
   outletWaitlist: (outletId: string) => `outlet:${outletId}:waitlist`,
   stationKots: (stationId: string) => `station:${stationId}:kots`,
   terminalSync: (terminalId: string) => `terminal:${terminalId}:sync`,
+  orgConfig: (organizationId: string) => `org:${organizationId}:config`,
 } as const;

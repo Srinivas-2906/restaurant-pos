@@ -2,33 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { HQ_ADMIN_URL, resolvePrimaryRole } from "@kaana/role-shells";
-import { getUser, logout } from "@/lib/api";
+import { HQ_ADMIN_URL } from "@kaana/role-shells";
+import { APP_ACCESS, hasSessionAppAccess } from "@kaana/shared-types";
+import {
+  getPermissionsFromSession,
+  getRolesFromSession,
+  getUser,
+  hasValidSession,
+  logout,
+} from "@/lib/api";
 
 export function CaptainAuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (!hasValidSession()) {
       router.replace("/");
       return;
     }
 
-    const user = getUser();
-    if (!user) {
-      router.replace("/");
-      return;
-    }
-
-    const primary = resolvePrimaryRole(user);
-    if (primary === "super_admin") {
+    const perms = getPermissionsFromSession();
+    const roles = getRolesFromSession();
+    if (roles.includes("super_admin")) {
       window.location.href = `${HQ_ADMIN_URL}/dashboard`;
       return;
     }
 
-    if (primary !== "captain") {
+    if (!hasSessionAppAccess(perms, roles, APP_ACCESS.access_captain)) {
       logout();
       router.replace("/");
       return;

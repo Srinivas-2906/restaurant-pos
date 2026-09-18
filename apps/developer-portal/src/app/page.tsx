@@ -1,51 +1,17 @@
+import { KaanaBrand } from "@kaana/ui";
+
 export default function DeveloperPortal() {
   return (
-    <main
-      style={{
-        maxWidth: 768,
-        margin: "0 auto",
-        padding: "32px 16px 48px",
-        fontFamily: "system-ui, sans-serif",
-        minHeight: "100dvh",
-        overflowX: "clip",
-        boxSizing: "border-box",
-      }}
-    >
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          background: "#000",
-          borderRadius: 12,
-          padding: "8px 14px",
-          marginBottom: 24,
-        }}
-      >
-        <img src="/kaana-logo.png" alt="Kaana Kitchens" style={{ height: 48, width: "auto", maxWidth: "100%", objectFit: "contain" }} />
-      </div>
-      <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b7280", margin: "0 0 8px" }}>
-        Developer Portal
-      </p>
-      <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 700, color: "#111", margin: 0 }}>
-        Developer Portal
-      </h1>
-      <p style={{ color: "#4b5563", marginTop: 8 }}>
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12 min-h-dvh safe-top safe-bottom">
+      <KaanaBrand size="md" framed appLabel="Developer Portal" className="mb-6" labelClassName="text-gray-500" />
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-balance">Developer Portal</h1>
+      <p className="mt-2 text-gray-600 text-balance">
         Public REST API, webhooks, sandbox, and SDK stubs for restaurant integrations.
       </p>
 
-      <section style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600 }}>Quick Start</h2>
-        <pre
-          style={{
-            marginTop: 12,
-            background: "#111",
-            color: "#4ade80",
-            padding: 16,
-            borderRadius: 12,
-            overflowX: "auto",
-            fontSize: 13,
-          }}
-        >
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-gray-900">Quick start</h2>
+        <pre className="mt-3 overflow-x-auto rounded-xl bg-gray-900 p-4 text-sm text-emerald-400">
 {`curl http://localhost:4000/api/developer/sandbox
 
 # Create API key (owner auth required)
@@ -55,26 +21,33 @@ curl -X POST http://localhost:4000/api/developer/api-keys?outletId=YOUR_OUTLET \
         </pre>
       </section>
 
-      <section style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600 }}>Webhooks</h2>
-        <p style={{ color: "#4b5563", marginTop: 8 }}>
-          Subscribe to: order.created, order.settled, payment.completed, inventory.low_stock
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-gray-900">Webhooks</h2>
+        <p className="mt-2 text-gray-600">
+          Subscribe to: <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded">order.created</code>,{" "}
+          <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded">order.settled</code>,{" "}
+          <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded">payment.completed</code>,{" "}
+          <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded">inventory.low_stock</code>
         </p>
       </section>
 
-      <section style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600 }}>SDKs</h2>
-        <ul style={{ color: "#4b5563", marginTop: 8, paddingLeft: 20 }}>
-          <li><strong>JavaScript:</strong> @kaana/sdk-js</li>
-          <li><strong>Python:</strong> kaana-sdk</li>
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-gray-900">SDKs</h2>
+        <ul className="mt-2 list-disc pl-5 text-gray-600 space-y-1">
+          <li>
+            <strong className="text-gray-800">JavaScript:</strong> @kaana/sdk-js
+          </li>
+          <li>
+            <strong className="text-gray-800">Python:</strong> kaana-sdk
+          </li>
         </ul>
       </section>
 
-      <section style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600 }}>Sandbox</h2>
-        <p style={{ color: "#4b5563", marginTop: 8 }}>
+      <section className="mt-10 rounded-2xl border border-gray-200 bg-white p-5 shadow-card">
+        <h2 className="text-lg font-semibold text-gray-900">Sandbox</h2>
+        <p className="mt-2 text-gray-600">
           Use demo outlet credentials from seed data. API docs at{" "}
-          <a href="http://localhost:4000/api/docs" style={{ color: "#111" }}>
+          <a href="http://localhost:4000/api/docs" className="font-medium text-kaana hover:text-kaana-dark">
             /api/docs
           </a>
         </p>

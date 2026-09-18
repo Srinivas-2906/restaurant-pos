@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@kaana/api-client": "*",
     "@kaana/shared-types": "*",
     "@kaana/role-shells": "*",
     "@kaana/sync-engine": "*",

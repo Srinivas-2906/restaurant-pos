@@ -64,6 +64,44 @@ export class EscPosDriver implements PrinterDriver {
   }
 }
 
+/** Android RN bridge wrapper — delegates to native Bluetooth ESC/POS module when present. */
+export class AndroidEscPosPrinterService implements PrinterDriver {
+  id: string;
+  private config: PrinterConfig;
+  private nativePrint?: (address: string, bytes: string) => Promise<void>;
+
+  constructor(config: PrinterConfig, nativePrint?: (address: string, bytes: string) => Promise<void>) {
+    this.id = config.id;
+    this.config = config;
+    this.nativePrint = nativePrint;
+  }
+
+  async print(job: PrintJob): Promise<PrintResult> {
+    if (this.nativePrint) {
+      try {
+        await this.nativePrint(this.config.address, job.content);
+        return { success: true, printerId: this.id, timestamp: new Date().toISOString() };
+      } catch (err) {
+        return {
+          success: false,
+          printerId: this.id,
+          error: err instanceof Error ? err.message : "Native print failed",
+          timestamp: new Date().toISOString(),
+        };
+      }
+    }
+    return new EscPosDriver(this.config).print(job);
+  }
+
+  async test(): Promise<PrintResult> {
+    return this.print({ type: "test", content: "=== KAANA MOBILE PRINTER TEST ===\nOK\n" });
+  }
+
+  async openDrawer(): Promise<DrawerKickResult> {
+    return new EscPosDriver(this.config).openDrawer!();
+  }
+}
+
 export class PrinterManager {
   private printers = new Map<string, PrinterDriver>();
   private routing = new Map<string, string>();
