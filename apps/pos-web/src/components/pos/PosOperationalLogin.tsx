@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { KaanaBrand, StaffLoginForm } from "@kaana/ui";
+import { PosLoginShell, StaffLoginForm } from "@kaana/ui";
 import {
   APP_URLS,
   getAppEntryForRole,
@@ -15,7 +15,6 @@ import {
   fetchTerminalMe,
   getTerminalCredential,
   hasValidSession,
-  isEmailSession,
   login,
   operationalPinLogin,
   setSelectedOutletId,
@@ -55,10 +54,7 @@ export function PosOperationalLogin() {
   }, [router]);
 
   const loadPicker = useCallback(async () => {
-    const [terminal, eligible] = await Promise.all([
-      fetchTerminalMe(),
-      fetchEligibleStaff(),
-    ]);
+    const [terminal, eligible] = await Promise.all([fetchTerminalMe(), fetchEligibleStaff()]);
     setTerminalName(terminal.name);
     setStaff(eligible);
     setStep("picker");
@@ -123,76 +119,68 @@ export function PosOperationalLogin() {
 
   if (step === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-gray-300">
-        Loading POS…
-      </div>
+      <PosLoginShell>
+        <p className="text-white/60 text-sm">Loading POS…</p>
+      </PosLoginShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
-      <header className="px-4 sm:px-6 py-4 flex items-center gap-3 border-b border-gray-800 min-w-0">
-        <KaanaBrand size="sm" appLabel="POS · Counter" />
-        <p className="text-xs text-gray-400 truncate ml-auto hidden sm:block">
-          {terminalName ? `Terminal · ${terminalName}` : "Counter terminal"}
-        </p>
-      </header>
+    <PosLoginShell terminalName={terminalName || undefined}>
+      {step === "setup" && (
+        <PosTerminalSetup
+          onRegistered={() => {
+            loadPicker().catch(() => setStep("setup"));
+          }}
+        />
+      )}
 
-      <main className="flex-1 flex items-center justify-center p-6">
-        {step === "setup" && (
-          <PosTerminalSetup
-            onRegistered={() => {
-              loadPicker().catch(() => setStep("setup"));
-            }}
+      {step === "picker" && (
+        <PosStaffPicker
+          staff={staff}
+          onSelect={(member) => {
+            setSelectedStaff(member);
+            setPinError(null);
+            setStep("pin");
+          }}
+          onManagerSignIn={() => setStep("manager-email")}
+        />
+      )}
+
+      {step === "pin" && selectedStaff && (
+        <PosPinPad
+          staffName={selectedStaff.displayName}
+          error={pinError}
+          submitting={submittingPin}
+          onBack={() => {
+            setSelectedStaff(null);
+            setStep("picker");
+          }}
+          onSubmit={handlePinSubmit}
+        />
+      )}
+
+      {step === "manager-email" && (
+        <div className="w-full max-w-md">
+          <StaffLoginForm
+            layout="card"
+            appName="Kaana Kitchens POS"
+            badge="Manager"
+            tagline="Email sign-in for managers covering the counter"
+            hint="Hub SSO and inventory managers use this path."
+            defaultEmail="manager@kaanafoods.in"
+            accent="orange"
+            onSubmit={handleManagerEmail}
           />
-        )}
-
-        {step === "picker" && (
-          <PosStaffPicker
-            staff={staff}
-            onSelect={(member) => {
-              setSelectedStaff(member);
-              setPinError(null);
-              setStep("pin");
-            }}
-            onManagerSignIn={() => setStep("manager-email")}
-          />
-        )}
-
-        {step === "pin" && selectedStaff && (
-          <PosPinPad
-            staffName={selectedStaff.displayName}
-            error={pinError}
-            submitting={submittingPin}
-            onBack={() => {
-              setSelectedStaff(null);
-              setStep("picker");
-            }}
-            onSubmit={handlePinSubmit}
-          />
-        )}
-
-        {step === "manager-email" && (
-          <div className="w-full max-w-md">
-            <StaffLoginForm
-              appName="Kaana Kitchens POS"
-              badge="Manager"
-              tagline="Email sign-in for managers covering the counter"
-              hint="Hub SSO and inventory managers use this path."
-              defaultEmail="manager@kaanafoods.in"
-              accent="orange"
-              onSubmit={handleManagerEmail}
-            />
-            <button
-              type="button"
-              onClick={() => setStep("picker")}
-              className="mt-4 w-full text-sm text-gray-400 hover:text-orange-400"
-            >
-              ← Back to staff picker
-            </button>
-          </div>
-        )}
-      </main>
-    </div>
+          <button
+            type="button"
+            onClick={() => setStep("picker")}
+            className="mt-4 w-full text-sm text-white/50 hover:text-orange-400 transition-colors"
+          >
+            ← Back to staff picker
+          </button>
+        </div>
+      )}
+    </PosLoginShell>
   );
 }

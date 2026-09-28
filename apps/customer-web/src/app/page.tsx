@@ -1,28 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { MenuItemGrid, formatCurrency } from "@kaana/ui";
+import { KaanaBrand, MenuItemGrid, formatCurrency } from "@kaana/ui";
 
 const DEMO_MENU = [
   { id: "1", name: "Paneer Tikka", price: 249, isVeg: true },
   { id: "2", name: "Butter Chicken", price: 349, isVeg: false },
   { id: "3", name: "Butter Naan", price: 59, isVeg: true },
 ];
-
-function BrandMark({ label }: { label?: string }) {
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: "inline-flex", background: "#000", borderRadius: 12, padding: "8px 14px" }}>
-        <img src="/kaana-logo.png" alt="Kaana Kitchens" style={{ height: 40, width: "auto", maxWidth: "100%", objectFit: "contain" }} />
-      </div>
-      {label && (
-        <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#6b7280", margin: "8px 0 0" }}>
-          {label}
-        </p>
-      )}
-    </div>
-  );
-}
 
 export default function MenuPage() {
   const [cart, setCart] = useState<Array<{ id: string; name: string; price: number; qty: number }>>([]);
@@ -33,41 +18,40 @@ export default function MenuPage() {
     if (!item) return;
     setCart((c) => {
       const existing = c.find((x) => x.id === id);
-      if (existing) return c.map((x) => x.id === id ? { ...x, qty: x.qty + 1 } : x);
+      if (existing) return c.map((x) => (x.id === id ? { ...x, qty: x.qty + 1 } : x));
       return [...c, { ...item, qty: 1 }];
     });
   }
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
 
-  const shellStyle: React.CSSProperties = {
-    maxWidth: 480,
-    margin: "0 auto",
-    padding: "16px 16px 96px",
-    minHeight: "100dvh",
-    overflowX: "clip",
-    width: "100%",
-    boxSizing: "border-box",
-  };
-
   if (step === "status") {
     return (
-      <main style={shellStyle}>
-        <h1 style={{ fontSize: "1.25rem", margin: 0 }}>Order Status — Q3</h1>
-        <p style={{ color: "#22c55e", fontWeight: "bold" }}>Preparing your order...</p>
-        <button onClick={() => setStep("menu")} style={{ marginTop: 24 }}>Order again</button>
+      <main className="mx-auto max-w-md min-h-dvh px-4 pb-24 pt-6 safe-top safe-bottom">
+        <KaanaBrand size="sm" framed appLabel="Order at Table" className="mb-6" labelClassName="text-gray-500" />
+        <h1 className="text-xl font-bold text-gray-900">Order status — Q3</h1>
+        <p className="mt-2 text-emerald-600 font-semibold">Preparing your order…</p>
+        <button
+          type="button"
+          onClick={() => setStep("menu")}
+          className="mt-8 text-sm font-medium text-kaana hover:text-kaana-dark"
+        >
+          Order again
+        </button>
       </main>
     );
   }
 
   if (step === "pay") {
     return (
-      <main style={shellStyle}>
-        <h1 style={{ fontSize: "1.25rem", margin: 0 }}>Pay — Q2</h1>
-        <p style={{ fontSize: 24, fontWeight: "bold" }}>{formatCurrency(total)}</p>
+      <main className="mx-auto max-w-md min-h-dvh px-4 pb-24 pt-6 safe-top safe-bottom">
+        <KaanaBrand size="sm" framed appLabel="Order at Table" className="mb-6" labelClassName="text-gray-500" />
+        <h1 className="text-xl font-bold text-gray-900">Pay — Q2</h1>
+        <p className="mt-4 text-3xl font-bold text-gray-900">{formatCurrency(total)}</p>
         <button
+          type="button"
           onClick={() => setStep("status")}
-          style={{ width: "100%", padding: 16, background: "#111", color: "#fff", border: "none", borderRadius: 12, marginTop: 16 }}
+          className="mt-8 w-full rounded-xl bg-gray-900 py-4 font-semibold text-white hover:bg-gray-800 transition-colors"
         >
           Pay via UPI
         </button>
@@ -76,31 +60,18 @@ export default function MenuPage() {
   }
 
   return (
-    <main style={shellStyle}>
-      <BrandMark label="Order at Table" />
-      <p style={{ color: "#666", margin: "0 0 16px" }}>Table T5 · Scan to order</p>
-      <script src="https://cdn.tailwindcss.com"></script>
-      <div style={{ minWidth: 0 }}>
-        <MenuItemGrid items={DEMO_MENU} onSelect={addItem} />
-      </div>
+    <main className="mx-auto max-w-md min-h-dvh px-4 pb-28 pt-6 safe-top safe-bottom">
+      <KaanaBrand size="sm" framed appLabel="Order at Table" className="mb-2" labelClassName="text-gray-500" />
+      <p className="text-sm text-gray-500 mb-5">Table T5 · Scan to order</p>
+      <MenuItemGrid items={DEMO_MENU} onSelect={addItem} />
       {cart.length > 0 && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: "#fff",
-            padding: "12px 16px calc(12px + env(safe-area-inset-bottom))",
-            borderTop: "1px solid #eee",
-            boxSizing: "border-box",
-          }}
-        >
+        <div className="fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white p-4 safe-bottom shadow-panel">
           <button
+            type="button"
             onClick={() => setStep("pay")}
-            style={{ width: "100%", padding: 16, background: "#111", color: "#fff", border: "none", borderRadius: 12 }}
+            className="w-full rounded-xl bg-gray-900 py-4 font-semibold text-white hover:bg-gray-800 transition-colors"
           >
-            View Cart ({cart.length}) — {formatCurrency(total)}
+            View cart ({cart.length}) — {formatCurrency(total)}
           </button>
         </div>
       )}

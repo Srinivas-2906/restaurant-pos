@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { notify, notifyOrderUpdate } from "@kaana/ui";
 import type { OrderDto } from "@kaana/shared-types";
 import { useCaptainRealtime } from "@/hooks/useCaptainRealtime";
-import { RoleAppShell } from "@/components/RoleAppShell";
+import { RoleAppShell } from "@kaana/ui";
 import { CaptainTableOrder } from "@/components/CaptainTableOrder";
 import { CaptainServePanel } from "@/components/CaptainServePanel";
 import {

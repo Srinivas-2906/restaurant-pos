@@ -41,6 +41,18 @@ packages/database/prisma/migrations/**/migration_lock.toml
 # Expo
 apps/captain-mobile/.expo/
 apps/captain-mobile/dist/
+apps/kds-android/.expo/
+apps/kaana-mobile/.expo/
+apps/kaana-mobile/dist/
+
+# Local tooling (do not commit)
+.tools/
+
+# Ad-hoc validation screenshots at repo root
+/step9-android-*.png
+
+# Ephemeral validation session files (activation codes)
+docs/validation/**/step15.1a-session.json
 
 # MinIO local data
 .minio/

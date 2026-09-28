@@ -6,7 +6,10 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
-    "./base.css": "./src/base.css"
+    "./base.css": "./src/base.css",
+    "./role.css": "./src/role.css",
+    "./tailwind.preset": "./tailwind.preset.js",
+    "./tailwind.content": "./tailwind.content.js"
   },
   "scripts": {
     "build": "tsc",

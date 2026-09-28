@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/finance", label: "Sales & GST", exact: true },
+  { href: "/finance/accounts", label: "Chart of Accounts" },
+  { href: "/finance/journal", label: "Journal" },
+  { href: "/finance/trial-balance", label: "Trial Balance" },
+  { href: "/finance/profit-loss", label: "P&L" },
+  { href: "/finance/balance-sheet", label: "Balance Sheet" },
   { href: "/finance/gst", label: "GST Export" },
   { href: "/finance/reconciliation", label: "Reconciliation" },
 ];

@@ -1,4 +1,5 @@
 import { POS_WEB_URL } from "@kaana/role-shells";
+import { getPermissionsFromToken, getRolesFromToken } from "@kaana/api-client";
 
 const TERMINAL_CREDENTIAL_KEY = "posTerminalCredential";
 const OPERATIONAL_STAFF_KEY = "operationalStaff";
@@ -169,6 +170,16 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+export function getPermissionsFromSession(): string[] {
+  if (typeof window === "undefined") return [];
+  return getPermissionsFromToken(localStorage.getItem("token"));
+}
+
+export function getRolesFromSession(): string[] {
+  if (typeof window === "undefined") return [];
+  return getRolesFromToken(localStorage.getItem("token"));
+}
+
 export function getAuthMode(): "email" | "operational" | null {
   if (typeof window === "undefined") return null;
   const token = localStorage.getItem("token");
@@ -238,6 +249,7 @@ export async function operationalPinLogin(staffProfileId: string, pin: string) {
   const data = await terminalApi<{
     accessToken: string;
     refreshToken?: string;
+    capabilities?: Record<string, unknown>;
     staff: { id: string; displayName: string; employeeCode: string; role: string };
     outletId: string;
     terminalId: string;
@@ -248,6 +260,7 @@ export async function operationalPinLogin(staffProfileId: string, pin: string) {
 
   localStorage.setItem("token", data.accessToken);
   if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+  if (data.capabilities) localStorage.setItem("capabilities", JSON.stringify(data.capabilities));
   localStorage.setItem(OPERATIONAL_STAFF_KEY, JSON.stringify(data.staff));
   localStorage.setItem("selectedOutletId", data.outletId);
   localStorage.setItem("terminalId", data.terminalId);
@@ -264,7 +277,7 @@ export async function registerTerminal(terminalId: string) {
 }
 
 export async function login(email: string, password: string) {
-  const data = await api<{ accessToken: string; refreshToken: string; user: AuthUser }>(
+  const data = await api<{ accessToken: string; refreshToken: string; user: AuthUser; capabilities?: Record<string, unknown> }>(
     "/auth/login",
     {
       method: "POST",
@@ -275,6 +288,7 @@ export async function login(email: string, password: string) {
   localStorage.setItem("token", data.accessToken);
   localStorage.setItem("refreshToken", data.refreshToken);
   localStorage.setItem("user", JSON.stringify(data.user));
+  if (data.capabilities) localStorage.setItem("capabilities", JSON.stringify(data.capabilities));
   localStorage.removeItem(OPERATIONAL_STAFF_KEY);
   if (data.user.id) localStorage.setItem("userId", data.user.id);
   return data;

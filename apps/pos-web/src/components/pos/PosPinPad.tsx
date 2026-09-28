@@ -39,19 +39,19 @@ export function PosPinPad({
   }
 
   return (
-    <div className="w-full max-w-sm mx-auto p-8 bg-gray-800 rounded-2xl border border-gray-700">
-      <button type="button" onClick={onBack} className="text-sm text-gray-400 hover:text-white mb-4">
+    <div className="w-full max-w-sm mx-auto p-6 sm:p-8 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm">
+      <button type="button" onClick={onBack} className="text-sm text-white/50 hover:text-white mb-4 transition-colors">
         ← Back
       </button>
       <h2 className="text-xl font-bold text-white text-center">{staffName}</h2>
-      <p className="text-center text-gray-400 text-sm mt-1 mb-6">Enter your PIN</p>
+      <p className="text-center text-white/50 text-sm mt-1 mb-6">Enter your PIN</p>
 
       <div className="flex justify-center gap-2 mb-6">
         {Array.from({ length: 6 }).map((_, index) => (
           <span
             key={index}
             className={`h-3 w-3 rounded-full ${
-              index < pin.length ? "bg-orange-500" : "bg-gray-600"
+              index < pin.length ? "bg-orange-500" : "bg-white/20"
             }`}
           />
         ))}
@@ -65,7 +65,7 @@ export function PosPinPad({
             key={key}
             type="button"
             onClick={() => (key === "clear" || key === "back" ? press(key) : press(key))}
-            className="py-4 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-semibold text-lg"
+            className="py-4 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-lg transition-colors"
           >
             {key === "clear" ? "C" : key === "back" ? "⌫" : key}
           </button>
@@ -76,7 +76,7 @@ export function PosPinPad({
         type="button"
         disabled={pin.length < 4 || submitting}
         onClick={submit}
-        className="w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 font-bold text-lg text-white"
+        className="w-full py-4 rounded-xl bg-orange-600 hover:bg-orange-500 disabled:opacity-50 font-bold text-lg text-white transition-colors"
       >
         {submitting ? "Signing in…" : "Unlock POS"}
       </button>

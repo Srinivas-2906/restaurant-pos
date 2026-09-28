@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Kaana Mobile",
+    "slug": "kaana-mobile",
+    "version": "1.0.0",
+    "orientation": "default",
+    "scheme": "kaana",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true
+  }
+}

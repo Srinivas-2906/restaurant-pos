@@ -50,7 +50,8 @@ export class TerminalAuthGuard implements CanActivate {
       !terminal ||
       !terminal.isActive ||
       !terminal.isRegistered ||
-      !terminal.deviceSecretHash
+      !terminal.deviceSecretHash ||
+      terminal.revokedAt
     ) {
       throw new UnauthorizedException("Terminal not registered");
     }

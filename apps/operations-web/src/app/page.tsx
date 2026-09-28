@@ -54,14 +54,22 @@ export default function LoginPage() {
   }
 
   return (
-    <StaffLoginForm
-      appName="Kaana Kitchens Operations"
-      badge="Owner console"
-      tagline="Payroll, staff, reports, and back office"
-      hint="Owners and managers sign in here. Counter, kitchen, and floor staff use their own apps."
-      defaultEmail="owner@kaanafoods.in"
-      accent="slate"
-      onSubmit={handleSubmit}
-    />
+    <div className="min-h-dvh flex flex-col items-center justify-center p-6">
+      <StaffLoginForm
+        appName="Kaana Kitchens Operations"
+        badge="Owner console"
+        tagline="Payroll, staff, reports, and back office"
+        hint="Owners and managers sign in here. Counter, kitchen, and floor staff use their own apps."
+        defaultEmail="owner@kaanafoods.in"
+        accent="slate"
+        onSubmit={handleSubmit}
+      />
+      <p className="mt-6 text-center text-sm text-slate-500">
+        New restaurant?{" "}
+        <a href="/signup" className="text-slate-800 underline underline-offset-2">
+          Create an owner account
+        </a>
+      </p>
+    </div>
   );
 }

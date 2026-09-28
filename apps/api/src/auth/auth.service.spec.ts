@@ -13,6 +13,8 @@ describe("AuthService email login", () => {
   };
   let audit: { log: jest.Mock };
   let tokens: { issueTokens: jest.Mock };
+  let outletsService: { bootstrapDineInOutlet: jest.Mock };
+  let capabilities: { resolveForOrganization: jest.Mock };
   let service: AuthService;
 
   beforeEach(() => {
@@ -30,7 +32,25 @@ describe("AuthService email login", () => {
         refreshToken: "refresh-token",
       }),
     };
-    service = new AuthService(prisma as never, audit as never, tokens as unknown as TokenService);
+    outletsService = { bootstrapDineInOutlet: jest.fn().mockResolvedValue(undefined) };
+    capabilities = {
+      resolveForOrganization: jest.fn().mockResolvedValue({
+        organizationId: "org-1",
+        operatingMode: "STANDARD",
+        subscriptionPlan: "LEGACY_FULL",
+        configVersion: 1,
+        modules: { pos: true },
+        features: {},
+        navDepth: 2,
+      }),
+    };
+    service = new AuthService(
+      prisma as never,
+      audit as never,
+      tokens as unknown as TokenService,
+      outletsService as never,
+      capabilities as never,
+    );
   });
 
   it("still logs in active users with email/password", async () => {
@@ -52,7 +72,12 @@ describe("AuthService email login", () => {
     expect(result.accessToken).toBe("access-token");
     expect(tokens.issueTokens).toHaveBeenCalledWith(
       expect.objectContaining({
-        payload: expect.objectContaining({ authMode: "email", sub: "user-1" }),
+        payload: expect.objectContaining({
+          authMode: "email",
+          sub: "user-1",
+          permissions: expect.any(Array),
+          roles: ["owner"],
+        }),
       }),
     );
   });

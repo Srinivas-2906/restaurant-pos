@@ -1,0 +1,86 @@
+@layer components {
+  .role-floor-card {
+    @apply relative flex flex-col rounded-2xl p-4 min-h-[108px] transition-all duration-200 text-left bg-white shadow-card ring-1 ring-black/[0.04];
+  }
+
+  .role-chip {
+    @apply inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold;
+  }
+
+  .role-chip-cooking {
+    @apply bg-amber-100 text-amber-900;
+  }
+
+  .role-chip-ready {
+    @apply bg-emerald-100 text-emerald-800;
+  }
+
+  .role-chip-served {
+    @apply bg-sky-100 text-sky-800;
+  }
+
+  .role-chip-pending {
+    @apply bg-orange-100 text-orange-800;
+  }
+
+  .role-chip-preparing {
+    @apply bg-amber-100 text-amber-900;
+  }
+
+  .role-action-ready {
+    @apply rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-all active:scale-[0.98] disabled:opacity-50;
+  }
+
+  .role-action-kot {
+    @apply rounded-xl font-semibold text-amber-950 bg-amber-400 hover:bg-amber-300 transition-all active:scale-[0.98];
+  }
+
+  .captain-serve-card {
+    @apply relative bg-white rounded-2xl shadow-card ring-1 ring-black/[0.04] overflow-hidden transition-all hover:shadow-panel;
+  }
+
+  .captain-serve-accent {
+    @apply absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl;
+  }
+
+  .captain-ready-glow {
+    animation: captain-ready-glow 2.5s ease-in-out infinite;
+  }
+
+  @keyframes captain-ready-glow {
+    0%,
+    100% {
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 0 0 0 rgb(16 185 129 / 0.25);
+    }
+    50% {
+      box-shadow: 0 4px 12px -2px rgb(16 185 129 / 0.12), 0 0 0 8px rgb(16 185 129 / 0);
+    }
+  }
+
+  .kds-item-ticket {
+    @apply relative bg-white rounded-2xl shadow-card ring-1 ring-black/[0.04] overflow-hidden transition-all duration-200 hover:shadow-panel hover:-translate-y-0.5;
+  }
+
+  .kds-item-accent {
+    @apply absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl;
+  }
+
+  .kds-item-bump {
+    @apply opacity-0 scale-95 ring-2 ring-emerald-400;
+    transition: opacity 0.25s, transform 0.25s;
+  }
+
+  .kds-overdue-pulse {
+    animation: kds-overdue-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes kds-overdue-pulse {
+    0%,
+    100% {
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 0 0 0 rgb(239 68 68 / 0.2);
+    }
+    50% {
+      box-shadow: 0 4px 12px -2px rgb(239 68 68 / 0.15), 0 0 0 6px rgb(239 68 68 / 0);
+    }
+  }
+}

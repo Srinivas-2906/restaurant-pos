@@ -115,3 +115,48 @@ export function hasActionPermission(permissions: string[], action: ActionPermiss
 export function hasAppAccess(permissions: string[], appAccess: AppAccessPermission): boolean {
   return permissions.includes(appAccess);
 }
+
+/** Maps registered terminal device type to required app-access permission. */
+export function appAccessForTerminalDeviceType(deviceType: string): AppAccessPermission {
+  switch (deviceType) {
+    case "captain":
+      return APP_ACCESS.access_captain;
+    case "kds":
+      return APP_ACCESS.access_kds;
+    case "pos":
+    default:
+      return APP_ACCESS.access_pos;
+  }
+}
+
+export function mergePermissionsFromAssignments(
+  assignments: Array<{ role: string; permissions?: unknown }>,
+): Permission[] {
+  const merged = new Set<Permission>();
+  for (const assignment of assignments) {
+    for (const permission of resolveEffectivePermissions(assignment)) {
+      merged.add(permission);
+    }
+  }
+  return [...merged];
+}
+
+export function hasSessionAppAccess(
+  permissions: string[] | undefined,
+  roles: string[] | undefined,
+  required: AppAccessPermission,
+): boolean {
+  if (permissions?.length && hasAppAccess(permissions, required)) {
+    return true;
+  }
+  if (roles?.includes("owner") || roles?.includes("super_admin")) {
+    return true;
+  }
+  if (roles?.length) {
+    for (const role of roles) {
+      const template = ROLE_PERMISSION_TEMPLATES[role] ?? [];
+      if (template.includes(required)) return true;
+    }
+  }
+  return false;
+}

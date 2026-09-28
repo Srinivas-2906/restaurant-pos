@@ -114,3 +114,11 @@ export async function replaySyncQueue(
 
   return { synced, failed };
 }
+
+export {
+  computeBackoffMs,
+  isRetryableHttpStatus,
+  isAuthError,
+  isConflictStatus,
+} from "./outbox";
+export type { OutboxRecord, PersistentOutboxStore } from "./outbox";

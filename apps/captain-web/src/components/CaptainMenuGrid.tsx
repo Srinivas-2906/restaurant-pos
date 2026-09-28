@@ -18,7 +18,7 @@ export function CaptainMenuGrid({
 
   const items = useMemo(() => {
     const flat = menu.flatMap((c) =>
-      c.items.map((item) => ({ ...item, categoryName: c.name, categoryId: c.id })),
+      (c.items ?? []).map((item) => ({ ...item, categoryName: c.name, categoryId: c.id })),
     );
     return flat.filter((item) => {
       if (item.isAvailable === false) return false;

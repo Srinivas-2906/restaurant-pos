@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { MenuService } from "../menu/menu.service";
+import { AccountingService } from "../accounting/accounting.service";
+import { AccountingPostingQueueService } from "../accounting/accounting-posting-queue.service";
 import {
   toStockUnit,
   fromConsumptionToStock,
@@ -15,12 +17,28 @@ import type { Prisma } from "@kaana/database";
 
 type TxClient = Prisma.TransactionClient;
 
+/** Ledger types that record commitment semantics without changing on-hand quantity. */
+const ZERO_QTY_LEDGER_TYPES = new Set(["committed_out", "commit_release"]);
+
+/** PO statuses that allow goods receipt. */
+const PO_RECEIVABLE_STATUSES = new Set(["sent", "partial"]);
+
 @Injectable()
 export class InventoryService {
   constructor(
     private prisma: PrismaService,
     private menuService: MenuService,
+    private accounting: AccountingService,
+    private accountingQueue: AccountingPostingQueueService,
   ) {}
+
+  private async organizationIdForOutlet(outletId: string) {
+    const outlet = await this.prisma.outlet.findUniqueOrThrow({
+      where: { id: outletId },
+      select: { brand: { select: { organizationId: true } } },
+    });
+    return outlet.brand.organizationId;
+  }
 
   private itemContext(ingredient: {
     unit: string;
@@ -52,7 +70,17 @@ export class InventoryService {
     });
 
     const currentStock = Number(ingredient.currentStock);
-    const newStock = input.allowNegative ? currentStock + input.quantity : Math.max(0, currentStock + input.quantity);
+    const projected = currentStock + input.quantity;
+    const policy = ingredient.negativeStockPolicy ?? "warn";
+
+    if (projected < 0 && !input.allowNegative) {
+      if (policy === "block") {
+        throw new BadRequestException(`Insufficient stock for ${ingredient.name}`);
+      }
+    }
+
+    const allowNegative = input.allowNegative || policy === "allow";
+    const newStock = allowNegative ? projected : Math.max(0, projected);
     const unitCost = input.unitCost ?? (Number(ingredient.weightedAverageCost || ingredient.costPerUnit) || 0);
     const totalValue = Math.abs(input.quantity) * unitCost;
 
@@ -75,10 +103,10 @@ export class InventoryService {
         ingredientId: input.ingredientId,
         locationId: input.sourceLocationId,
         batchId: input.batchId,
-        onHand: Math.max(0, newStock),
+        onHand: allowNegative ? newStock : Math.max(0, newStock),
       },
       update: {
-        onHand: Math.max(0, newStock),
+        onHand: allowNegative ? newStock : Math.max(0, newStock),
       },
     }).catch(() => undefined);
 
@@ -220,6 +248,14 @@ export class InventoryService {
     });
 
     for (const c of commitments) {
+      if (!asWastage) {
+        const releaseRef = `${orderItemId}:${c.ingredientId}:release`;
+        const existingRelease = await this.prisma.stockLedger.findFirst({
+          where: { outletId, ingredientId: c.ingredientId, type: "commit_release", reference: releaseRef },
+        });
+        if (existingRelease) continue;
+      }
+
       await this.prisma.$transaction(async (tx) => {
         const ing = await tx.ingredient.findUniqueOrThrow({ where: { id: c.ingredientId } });
         const qty = Number(c.quantity);
@@ -246,12 +282,13 @@ export class InventoryService {
             unitCost: Number(ing.weightedAverageCost || ing.costPerUnit),
           });
         } else {
+          const releaseRef = `${orderItemId}:${c.ingredientId}:release`;
           await this.writeLedger(tx, {
             outletId,
             ingredientId: c.ingredientId,
             type: "commit_release",
             quantity: 0,
-            reference: `${orderItemId}:${c.ingredientId}:release`,
+            reference: releaseRef,
             notes: `Released ${qty} ${ing.unit}`,
           });
         }
@@ -351,6 +388,18 @@ export class InventoryService {
     });
 
     return this.prisma.$transaction(async (tx) => {
+      const existingOpening = await tx.stockLedger.findFirst({
+        where: {
+          outletId,
+          ingredientId: data.ingredientId,
+          type: "opening_stock",
+          reference: `opening:${data.ingredientId}`,
+        },
+      });
+      if (existingOpening) {
+        throw new BadRequestException("Opening stock already recorded for this ingredient");
+      }
+
       const cost = data.unitCost ?? (Number(ingredient.weightedAverageCost || ingredient.costPerUnit) || 0);
       const costUpdate = updateCostOnReceipt(
         { currentStock: 0, weightedAverageCost: Number(ingredient.weightedAverageCost), lastPurchaseCost: Number(ingredient.lastPurchaseCost) },
@@ -492,13 +541,13 @@ export class InventoryService {
     });
   }
 
-  createStockAdjustment(outletId: string, data: {
+  async createStockAdjustment(outletId: string, data: {
     ingredientId: string; quantity: number; notes?: string; reason?: string; createdById?: string;
   }) {
     if (!data.reason?.trim()) {
       throw new BadRequestException("Reason is required for manual adjustments");
     }
-    return this.prisma.$transaction(async (tx) => {
+    const ledger = await this.prisma.$transaction(async (tx) => {
       const ingredient = await tx.ingredient.findUniqueOrThrow({ where: { id: data.ingredientId } });
       return this.writeLedger(tx, {
         outletId,
@@ -511,6 +560,32 @@ export class InventoryService {
         unitCost: Number(ingredient.weightedAverageCost || ingredient.costPerUnit),
       });
     });
+
+    const costValue = Math.abs(Number(ledger.quantity)) * Number(ledger.unitCost ?? 0);
+    if (costValue > 0) {
+      const orgId = await this.organizationIdForOutlet(outletId);
+      const payload = {
+        organizationId: orgId,
+        outletId,
+        ledgerId: ledger.id,
+        reference: ledger.reference ?? `adjustment:${ledger.id}`,
+        quantity: Number(ledger.quantity),
+        costValue,
+        reason: data.reason,
+      };
+      await this.accountingQueue.runOrEnqueue({
+        organizationId: orgId,
+        outletId,
+        sourceType: Number(ledger.quantity) < 0 ? "inventory_adjustment_loss" : "inventory_adjustment_gain",
+        sourceId: ledger.id,
+        idempotencyKey: `adjustment:${ledger.id}`,
+        payload,
+        execute: () => this.accounting.postStockAdjustmentAccounting(payload),
+        swallowError: true,
+      });
+    }
+
+    return ledger;
   }
 
   async getStockClosings(outletId: string, month?: string) {
@@ -550,16 +625,18 @@ export class InventoryService {
     return this.prisma.ingredientCategory.create({ data: { outletId, name, sortOrder } });
   }
 
-  recordWastage(outletId: string, data: {
+  async recordWastage(outletId: string, data: {
     ingredientId: string; quantity: number; category?: string; notes?: string;
     reason?: string; batchId?: string; orderId?: string; recordedById?: string;
   }) {
-    return this.prisma.$transaction(async (tx) => {
+    let wastageMeta: { id: string; costImpact: number; ingredientName: string } | undefined;
+
+    const ledger = await this.prisma.$transaction(async (tx) => {
       const ingredient = await tx.ingredient.findUniqueOrThrow({ where: { id: data.ingredientId } });
       const unitCost = Number(ingredient.weightedAverageCost || ingredient.costPerUnit);
       const costImpact = data.quantity * unitCost;
 
-      await tx.wastageEntry.create({
+      const wastage = await tx.wastageEntry.create({
         data: {
           outletId,
           ingredientId: data.ingredientId,
@@ -575,6 +652,8 @@ export class InventoryService {
         },
       });
 
+      wastageMeta = { id: wastage.id, costImpact, ingredientName: ingredient.name };
+
       return this.writeLedger(tx, {
         outletId,
         ingredientId: data.ingredientId,
@@ -586,6 +665,29 @@ export class InventoryService {
         batchId: data.batchId,
       });
     });
+
+    if (wastageMeta && wastageMeta.costImpact > 0) {
+      const orgId = await this.organizationIdForOutlet(outletId);
+      const payload = {
+        organizationId: orgId,
+        outletId,
+        wastageEntryId: wastageMeta.id,
+        ingredientName: wastageMeta.ingredientName,
+        costValue: wastageMeta.costImpact,
+      };
+      await this.accountingQueue.runOrEnqueue({
+        organizationId: orgId,
+        outletId,
+        sourceType: "inventory_wastage",
+        sourceId: wastageMeta.id,
+        idempotencyKey: `wastage:${wastageMeta.id}`,
+        payload,
+        execute: () => this.accounting.postWastageAccounting(payload),
+        swallowError: true,
+      });
+    }
+
+    return ledger;
   }
 
   createPurchaseOrder(outletId: string, data: {
@@ -618,16 +720,82 @@ export class InventoryService {
     });
   }
 
-  async receivePO(poId: string, lines?: Array<{ poItemId: string; receivedQty: number; rejectedQty?: number; purchaseUnit?: string }>) {
-    return this.receiveGoods(poId, lines);
+  async receivePO(
+    poId: string,
+    lines?: Array<{ poItemId: string; receivedQty: number; rejectedQty?: number; purchaseUnit?: string }>,
+    options?: { idempotencyKey?: string; createdById?: string },
+  ) {
+    return this.receiveGoods(poId, lines, options);
   }
 
-  async receiveGoods(poId: string, lines?: Array<{ poItemId: string; receivedQty: number; rejectedQty?: number; purchaseUnit?: string }>) {
-    return this.prisma.$transaction(async (tx) => {
+  private poInclude = {
+    items: { include: { ingredient: { include: { conversions: true } } } },
+    supplier: true,
+  } as const;
+
+  async receiveGoods(
+    poId: string,
+    lines?: Array<{ poItemId: string; receivedQty: number; rejectedQty?: number; purchaseUnit?: string }>,
+    options?: { idempotencyKey?: string; createdById?: string },
+  ) {
+    let grnReceiptMeta: { grnId: string; grnNumber: string; totalValue: number; outletId: string } | undefined;
+
+    const result = await this.prisma.$transaction(async (tx) => {
       const po = await tx.purchaseOrder.findUniqueOrThrow({
         where: { id: poId },
-        include: { items: { include: { ingredient: { include: { conversions: true } } } }, supplier: true },
+        include: this.poInclude,
       });
+
+      if (po.status === "cancelled") {
+        throw new BadRequestException("Cannot receive a cancelled purchase order");
+      }
+      if (po.status === "draft") {
+        throw new BadRequestException("Send the purchase order before receiving goods");
+      }
+
+      const fullyReceived = po.items.every((i) => Number(i.receivedQty) >= Number(i.quantity));
+
+      if (options?.idempotencyKey) {
+        const refPrefix = `idempotent:${poId}:${options.idempotencyKey}`;
+        const dup = await tx.stockLedger.findFirst({
+          where: { outletId: po.outletId, reference: { startsWith: refPrefix } },
+        });
+        if (dup) {
+          return tx.purchaseOrder.findUniqueOrThrow({ where: { id: poId }, include: this.poInclude });
+        }
+      }
+
+      if (po.status === "received" && fullyReceived) {
+        return tx.purchaseOrder.findUniqueOrThrow({ where: { id: poId }, include: this.poInclude });
+      }
+
+      if (lines?.length) {
+        for (const lineInput of lines) {
+          const item = po.items.find((i) => i.id === lineInput.poItemId);
+          if (!item) continue;
+          const orderedQty = Number(item.quantity);
+          const alreadyReceived = Number(item.receivedQty);
+          if (alreadyReceived + lineInput.receivedQty > orderedQty + 1e-6) {
+            throw new BadRequestException(
+              `Cannot receive ${lineInput.receivedQty} for ${item.ingredient.name}: ordered ${orderedQty}, already received ${alreadyReceived}`,
+            );
+          }
+        }
+      }
+
+      if (!PO_RECEIVABLE_STATUSES.has(po.status) && po.status !== "received") {
+        throw new BadRequestException(`Cannot receive purchase order in status ${po.status}`);
+      }
+
+      if (options?.idempotencyKey) {
+        const refPrefix = `idempotent:${poId}:${options.idempotencyKey}`;
+        const dup = await tx.stockLedger.findFirst({
+          where: { outletId: po.outletId, reference: { startsWith: refPrefix } },
+        });
+        if (dup) {
+          return tx.purchaseOrder.findUniqueOrThrow({ where: { id: poId }, include: this.poInclude });
+        }
+      }
 
       const grnCount = await tx.goodsReceipt.count({ where: { outletId: po.outletId } });
       const grn = await tx.goodsReceipt.create({
@@ -641,13 +809,25 @@ export class InventoryService {
 
       let allReceived = true;
       let anyReceived = false;
+      let grnTotalValue = 0;
+      const idemPrefix = options?.idempotencyKey ? `idempotent:${poId}:${options.idempotencyKey}` : null;
 
       for (const item of po.items) {
         const lineInput = lines?.find((l) => l.poItemId === item.id);
         const orderedQty = Number(item.quantity);
         const alreadyReceived = Number(item.receivedQty);
-        const receiveQty = lineInput?.receivedQty ?? (orderedQty - alreadyReceived);
-        if (receiveQty <= 0) continue;
+        const pendingQty = Math.max(0, orderedQty - alreadyReceived);
+        const receiveQty = lineInput?.receivedQty ?? pendingQty;
+        if (receiveQty <= 0) {
+          if (alreadyReceived < orderedQty) allReceived = false;
+          continue;
+        }
+
+        if (alreadyReceived + receiveQty > orderedQty + 1e-6) {
+          throw new BadRequestException(
+            `Cannot receive ${receiveQty} for ${item.ingredient.name}: ordered ${orderedQty}, already received ${alreadyReceived}`,
+          );
+        }
 
         anyReceived = true;
         const ingredient = item.ingredient;
@@ -661,6 +841,7 @@ export class InventoryService {
         }
 
         const unitCost = Number(item.unitPrice);
+        const stockUnitCost = receiveQty > 0 ? unitCost * (receiveQty / stockQty) : unitCost;
         const costUpdate = updateCostOnReceipt(
           {
             currentStock: Number(ingredient.currentStock),
@@ -668,7 +849,7 @@ export class InventoryService {
             lastPurchaseCost: Number(ingredient.lastPurchaseCost || ingredient.costPerUnit),
           },
           stockQty,
-          unitCost / (receiveQty > 0 ? stockQty / receiveQty : 1),
+          stockUnitCost,
         );
 
         await tx.ingredient.update({
@@ -703,15 +884,23 @@ export class InventoryService {
           },
         });
 
+        const ledgerRef = idemPrefix
+          ? `${idemPrefix}:${item.ingredientId}`
+          : `${po.poNumber}:${grn.grnNumber}:${item.ingredientId}`;
+
         await this.writeLedger(tx, {
           outletId: po.outletId,
           ingredientId: item.ingredientId,
           type: "purchase",
           quantity: stockQty,
-          reference: `${po.poNumber}:${grn.grnNumber}`,
+          reference: ledgerRef,
           unitCost: costUpdate.weightedAverageCost,
           batchId: batch?.id,
+          createdById: options?.createdById,
+          notes: `GRN ${grn.grnNumber} from PO ${po.poNumber}`,
         });
+
+        grnTotalValue += stockQty * Number(costUpdate.weightedAverageCost);
 
         const newReceived = alreadyReceived + receiveQty;
         await tx.pOItem.update({
@@ -734,27 +923,80 @@ export class InventoryService {
         },
       });
 
+      grnReceiptMeta = {
+        grnId: grn.id,
+        grnNumber: grn.grnNumber,
+        totalValue: grnTotalValue,
+        outletId: po.outletId,
+      };
+
       return tx.purchaseOrder.update({
         where: { id: poId },
         data: { status, receivedAt: allReceived ? new Date() : undefined },
-        include: { items: { include: { ingredient: true } }, supplier: true },
+        include: this.poInclude,
       });
     });
+
+    if (grnReceiptMeta && grnReceiptMeta.totalValue > 0) {
+      const orgId = await this.organizationIdForOutlet(grnReceiptMeta.outletId);
+      const payload = {
+        organizationId: orgId,
+        outletId: grnReceiptMeta.outletId,
+        goodsReceiptId: grnReceiptMeta.grnId,
+        grnNumber: grnReceiptMeta.grnNumber,
+        totalValue: grnReceiptMeta.totalValue,
+      };
+      await this.accountingQueue.runOrEnqueue({
+        organizationId: orgId,
+        outletId: grnReceiptMeta.outletId,
+        sourceType: "goods_receipt",
+        sourceId: grnReceiptMeta.grnId,
+        idempotencyKey: `grn:${grnReceiptMeta.grnId}`,
+        payload,
+        execute: () => this.accounting.postGoodsReceiptAccounting(payload),
+        swallowError: true,
+      });
+    }
+
+    return result;
   }
 
   async sendPO(poId: string) {
+    const po = await this.prisma.purchaseOrder.findUniqueOrThrow({ where: { id: poId } });
+    if (po.status === "cancelled") {
+      throw new BadRequestException("Cannot send a cancelled purchase order");
+    }
+    if (po.status === "sent" || po.status === "partial" || po.status === "received") {
+      return this.prisma.purchaseOrder.findUniqueOrThrow({
+        where: { id: poId },
+        include: this.poInclude,
+      });
+    }
     return this.prisma.purchaseOrder.update({
       where: { id: poId },
       data: { status: "sent", orderedAt: new Date() },
+      include: this.poInclude,
     });
   }
 
   async cancelPO(poId: string) {
-    const po = await this.prisma.purchaseOrder.findUniqueOrThrow({ where: { id: poId } });
-    if (po.status === "received") throw new BadRequestException("Cannot cancel received PO");
+    const po = await this.prisma.purchaseOrder.findUniqueOrThrow({
+      where: { id: poId },
+      include: { items: true },
+    });
+    if (po.status === "cancelled") {
+      return this.prisma.purchaseOrder.findUniqueOrThrow({
+        where: { id: poId },
+        include: this.poInclude,
+      });
+    }
+    if (po.status === "received") {
+      throw new BadRequestException("Cannot cancel a fully received purchase order");
+    }
     return this.prisma.purchaseOrder.update({
       where: { id: poId },
       data: { status: "cancelled" },
+      include: this.poInclude,
     });
   }
 
@@ -788,15 +1030,39 @@ export class InventoryService {
       include: { lines: { include: { ingredient: true } } },
     });
 
-    return this.prisma.$transaction(async (tx) => {
+    if (transfer.status === "in_transit" || transfer.status === "received") {
+      return this.prisma.centralKitchenTransfer.findUniqueOrThrow({
+        where: { id: transferId },
+        include: { lines: { include: { ingredient: true } } },
+      });
+    }
+    if (transfer.status === "cancelled") {
+      throw new BadRequestException("Cannot dispatch a cancelled transfer");
+    }
+
+    let dispatchTotal = 0;
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const line of transfer.lines) {
         const qty = Number(line.requestedQty);
+        const unitCost = Number(line.ingredient.weightedAverageCost || line.ingredient.costPerUnit);
+        dispatchTotal += qty * unitCost;
+        const dispatchRef = `${transfer.transferNumber}:dispatch:${line.ingredientId}`;
+        const existing = await tx.stockLedger.findFirst({
+          where: {
+            outletId: transfer.fromOutletId,
+            ingredientId: line.ingredientId,
+            type: "transfer_out",
+            reference: dispatchRef,
+          },
+        });
+        if (existing) continue;
+
         await this.writeLedger(tx, {
           outletId: transfer.fromOutletId,
           ingredientId: line.ingredientId,
           type: "transfer_out",
           quantity: -qty,
-          reference: transfer.transferNumber,
+          reference: dispatchRef,
           unitCost: Number(line.ingredient.weightedAverageCost || line.ingredient.costPerUnit),
         });
 
@@ -826,6 +1092,29 @@ export class InventoryService {
         include: { lines: { include: { ingredient: true } } },
       });
     });
+
+    if (dispatchTotal > 0) {
+      const orgId = await this.organizationIdForOutlet(transfer.fromOutletId);
+      const payload = {
+        organizationId: orgId,
+        fromOutletId: transfer.fromOutletId,
+        transferId,
+        transferNumber: transfer.transferNumber,
+        totalValue: dispatchTotal,
+      };
+      await this.accountingQueue.runOrEnqueue({
+        organizationId: orgId,
+        outletId: transfer.fromOutletId,
+        sourceType: "inventory_transfer_dispatch",
+        sourceId: transferId,
+        idempotencyKey: `transfer-dispatch:${transferId}`,
+        payload,
+        execute: () => this.accounting.postTransferDispatchAccounting(payload),
+        swallowError: true,
+      });
+    }
+
+    return result;
   }
 
   async receiveTransfer(transferId: string, lines?: Array<{ lineId: string; receivedQty: number }>) {
@@ -834,25 +1123,49 @@ export class InventoryService {
       include: { lines: { include: { ingredient: true } } },
     });
 
-    return this.prisma.$transaction(async (tx) => {
+    if (transfer.status === "received") {
+      return this.prisma.centralKitchenTransfer.findUniqueOrThrow({
+        where: { id: transferId },
+        include: { lines: { include: { ingredient: true } } },
+      });
+    }
+    if (transfer.status !== "in_transit") {
+      throw new BadRequestException("Transfer must be dispatched before it can be received");
+    }
+
+    let receiveTotal = 0;
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const line of transfer.lines) {
         const input = lines?.find((l) => l.lineId === line.id);
         const qty = input?.receivedQty ?? Number(line.dispatchedQty);
         if (qty <= 0) continue;
+
+        receiveTotal += qty * Number(line.ingredient.weightedAverageCost || line.ingredient.costPerUnit);
 
         const destIngredient = await tx.ingredient.findFirst({
           where: { outletId: transfer.toOutletId, name: line.ingredient.name },
         });
 
         if (destIngredient) {
-          await this.writeLedger(tx, {
-            outletId: transfer.toOutletId,
-            ingredientId: destIngredient.id,
-            type: "transfer_in",
-            quantity: qty,
-            reference: transfer.transferNumber,
-            unitCost: Number(line.ingredient.weightedAverageCost || line.ingredient.costPerUnit),
+          const receiveRef = `${transfer.transferNumber}:receive:${destIngredient.id}`;
+          const existing = await tx.stockLedger.findFirst({
+            where: {
+              outletId: transfer.toOutletId,
+              ingredientId: destIngredient.id,
+              type: "transfer_in",
+              reference: receiveRef,
+            },
           });
+          if (!existing) {
+            await this.writeLedger(tx, {
+              outletId: transfer.toOutletId,
+              ingredientId: destIngredient.id,
+              type: "transfer_in",
+              quantity: qty,
+              reference: receiveRef,
+              unitCost: Number(line.ingredient.weightedAverageCost || line.ingredient.costPerUnit),
+            });
+          }
         }
 
         await tx.stockTransferLine.update({
@@ -867,6 +1180,29 @@ export class InventoryService {
         include: { lines: { include: { ingredient: true } } },
       });
     });
+
+    if (receiveTotal > 0) {
+      const orgId = await this.organizationIdForOutlet(transfer.toOutletId);
+      const payload = {
+        organizationId: orgId,
+        toOutletId: transfer.toOutletId,
+        transferId,
+        transferNumber: transfer.transferNumber,
+        totalValue: receiveTotal,
+      };
+      await this.accountingQueue.runOrEnqueue({
+        organizationId: orgId,
+        outletId: transfer.toOutletId,
+        sourceType: "inventory_transfer_receive",
+        sourceId: transferId,
+        idempotencyKey: `transfer-receive:${transferId}`,
+        payload,
+        execute: () => this.accounting.postTransferReceiveAccounting(payload),
+        swallowError: true,
+      });
+    }
+
+    return result;
   }
 
   getSuppliers(outletId: string) {
@@ -1181,17 +1517,35 @@ export class InventoryService {
       include: { lines: { include: { ingredient: true } }, outlet: true },
     });
 
-    return this.prisma.$transaction(async (tx) => {
+    if (count.status === "posted") {
+      return this.prisma.stockCount.findUniqueOrThrow({
+        where: { id: countId },
+        include: { lines: { include: { ingredient: true } } },
+      });
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const line of count.lines) {
         const variance = Number(line.variance);
         if (variance === 0) continue;
+
+        const adjRef = `${count.countNumber}:${line.ingredientId}`;
+        const existingAdj = await tx.stockLedger.findFirst({
+          where: {
+            outletId: count.outletId,
+            ingredientId: line.ingredientId,
+            type: "stock_count_adjustment",
+            reference: adjRef,
+          },
+        });
+        if (existingAdj) continue;
 
         await this.writeLedger(tx, {
           outletId: count.outletId,
           ingredientId: line.ingredientId,
           type: "stock_count_adjustment",
           quantity: variance,
-          reference: count.countNumber,
+          reference: adjRef,
           reason: line.reason ?? "Stock count variance",
           unitCost: Number(line.ingredient.weightedAverageCost || line.ingredient.costPerUnit),
         });
@@ -1203,6 +1557,44 @@ export class InventoryService {
         include: { lines: { include: { ingredient: true } } },
       });
     });
+
+    const orgId = await this.organizationIdForOutlet(count.outletId);
+    for (const line of result.lines) {
+      const variance = Number(line.variance);
+      if (variance === 0) continue;
+      const costValue = Math.abs(Number(line.varianceValue));
+      if (costValue <= 0) continue;
+      const ledger = await this.prisma.stockLedger.findFirst({
+        where: {
+          outletId: count.outletId,
+          ingredientId: line.ingredientId,
+          type: "stock_count_adjustment",
+          reference: `${count.countNumber}:${line.ingredientId}`,
+        },
+      });
+      if (!ledger) continue;
+      const payload = {
+        organizationId: orgId,
+        outletId: count.outletId,
+        ledgerId: ledger.id,
+        reference: ledger.reference ?? `${count.countNumber}:${line.ingredientId}`,
+        quantity: variance,
+        costValue,
+        reason: line.reason ?? "Stock count variance",
+      };
+      await this.accountingQueue.runOrEnqueue({
+        organizationId: orgId,
+        outletId: count.outletId,
+        sourceType: variance < 0 ? "inventory_adjustment_loss" : "inventory_adjustment_gain",
+        sourceId: ledger.id,
+        idempotencyKey: `adjustment:${ledger.id}`,
+        payload,
+        execute: () => this.accounting.postStockAdjustmentAccounting(payload),
+        swallowError: true,
+      });
+    }
+
+    return result;
   }
 
   getStockCounts(outletId: string) {
@@ -1320,9 +1712,33 @@ export class InventoryService {
   }
 
   createPurchaseInvoice(outletId: string, data: Record<string, unknown>) {
+    const taxableValue = Number(data.taxableValue ?? 0);
+    const cgst = Number(data.cgst ?? 0);
+    const sgst = Number(data.sgst ?? 0);
+    const igst = Number(data.igst ?? 0);
+    const discount = Number(data.discount ?? 0);
+    const freight = Number(data.freight ?? 0);
+    const rounding = Number(data.rounding ?? 0);
+    const totalAmount =
+      data.totalAmount != null
+        ? Number(data.totalAmount)
+        : Math.round((taxableValue + cgst + sgst + igst + freight + rounding - discount) * 100) / 100;
+
     return this.prisma.purchaseInvoice.create({
-      data: { outletId, ...data } as never,
+      data: { outletId, ...data, totalAmount } as never,
       include: { supplier: true },
+    }).then(async (invoice) => {
+      await this.accountingQueue.runOrEnqueue({
+        organizationId: await this.organizationIdForOutlet(outletId),
+        outletId,
+        sourceType: "supplier_invoice",
+        sourceId: invoice.id,
+        idempotencyKey: `purchase-invoice:${invoice.id}`,
+        payload: invoice as never,
+        execute: () => this.accounting.postPurchaseInvoiceAccounting(invoice),
+        swallowError: true,
+      });
+      return invoice;
     });
   }
 
@@ -1437,5 +1853,96 @@ export class InventoryService {
         };
       })
       .filter(Boolean);
+  }
+
+  /**
+   * Diagnostic: replay non-zero ledger movements and compare to Ingredient.currentStock.
+   * committed_out / commit_release are audit-only (quantity 0) and excluded.
+   */
+  async reconcileOutletStock(outletId: string) {
+    const ingredients = await this.prisma.ingredient.findMany({
+      where: { outletId, isActive: true },
+      select: { id: true, name: true, currentStock: true, committedStock: true, unit: true },
+    });
+
+    const mismatches: Array<{
+      ingredientId: string;
+      name: string;
+      ledgerSum: number;
+      currentStock: number;
+      delta: number;
+      committedStock: number;
+    }> = [];
+
+    for (const ing of ingredients) {
+      const entries = await this.prisma.stockLedger.findMany({
+        where: { outletId, ingredientId: ing.id },
+        select: { quantity: true, type: true },
+      });
+
+      let ledgerSum = 0;
+      for (const e of entries) {
+        if (ZERO_QTY_LEDGER_TYPES.has(e.type)) continue;
+        ledgerSum += Number(e.quantity);
+      }
+
+      const onHand = Number(ing.currentStock);
+      const delta = onHand - ledgerSum;
+      if (Math.abs(delta) > 0.001) {
+        mismatches.push({
+          ingredientId: ing.id,
+          name: ing.name,
+          ledgerSum,
+          currentStock: onHand,
+          delta,
+          committedStock: Number(ing.committedStock),
+        });
+      }
+    }
+
+    return {
+      ok: mismatches.length === 0,
+      outletId,
+      ingredientCount: ingredients.length,
+      mismatchCount: mismatches.length,
+      mismatches,
+    };
+  }
+
+  /** Validate seeded/menu recipes reference active ingredients with convertible units. */
+  async validateRecipeIntegrity(outletId: string) {
+    const recipes = await this.getRecipes(outletId);
+    const issues: Array<{ menuItem: string; ingredient?: string; issue: string }> = [];
+
+    for (const recipe of recipes) {
+      for (const ri of recipe.ingredients) {
+        const ingredient = await this.prisma.ingredient.findUnique({
+          where: { id: ri.ingredientId },
+          include: { conversions: true },
+        });
+        if (!ingredient) {
+          issues.push({ menuItem: recipe.name, ingredient: ri.name, issue: "ingredient not found" });
+          continue;
+        }
+        if (!ingredient.isActive) {
+          issues.push({ menuItem: recipe.name, ingredient: ingredient.name, issue: "ingredient inactive" });
+        }
+        if (ingredient.outletId !== outletId) {
+          issues.push({ menuItem: recipe.name, ingredient: ingredient.name, issue: "ingredient belongs to another outlet" });
+        }
+        try {
+          const ctx = this.itemContext(ingredient);
+          fromConsumptionToStock(ctx, ri.quantity);
+        } catch {
+          issues.push({
+            menuItem: recipe.name,
+            ingredient: ingredient.name,
+            issue: `unit conversion failed (${ri.quantity} ${ri.unit})`,
+          });
+        }
+      }
+    }
+
+    return { ok: issues.length === 0, recipeCount: recipes.length, issues };
   }
 }

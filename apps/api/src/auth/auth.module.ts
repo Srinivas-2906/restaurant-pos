@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -8,12 +8,16 @@ import { JwtStrategy } from "./jwt.strategy";
 import { RolesGuard } from "./roles.guard";
 import { PermissionsGuard } from "./permissions.guard";
 import { TerminalAuthGuard } from "./terminal-auth.guard";
+import { OperationalSessionGuard } from "./operational-session.guard";
 import { OperationalAuthService } from "./operational-auth.service";
 import { OperationalAuthController } from "./operational-auth.controller";
 import { TokenService } from "./token.service";
+import { OutletScopeService } from "./outlet-scope.service";
+import { OutletsModule } from "../outlets/outlets.module";
 
 @Module({
   imports: [
+    forwardRef(() => OutletsModule),
     PassportModule.register({ defaultStrategy: "jwt" }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -31,8 +35,10 @@ import { TokenService } from "./token.service";
     RolesGuard,
     PermissionsGuard,
     TerminalAuthGuard,
+    OperationalSessionGuard,
     OperationalAuthService,
     TokenService,
+    OutletScopeService,
   ],
   exports: [
     AuthService,
@@ -40,8 +46,10 @@ import { TokenService } from "./token.service";
     RolesGuard,
     PermissionsGuard,
     TerminalAuthGuard,
+    OperationalSessionGuard,
     OperationalAuthService,
     TokenService,
+    OutletScopeService,
   ],
 })
 export class AuthModule {}

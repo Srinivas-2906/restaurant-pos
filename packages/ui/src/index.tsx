@@ -7,10 +7,19 @@ export { KaanaLogo, KaanaBrand } from "./components/KaanaLogo";
 export type { KaanaLogoSize } from "./components/KaanaLogo";
 export { StaffLoginForm } from "./components/StaffLoginForm";
 export type { StaffLoginAccent } from "./components/StaffLoginForm";
+export { RoleAppShell } from "./components/RoleAppShell";
+export type { RoleShellVariant } from "./components/RoleAppShell";
+export { PosLoginShell } from "./components/PosLoginShell";
+export {
+  OperationalStaffPicker,
+  OperationalPinPad,
+} from "./components/OperationalStaffLogin";
+export type { EligibleStaffMember } from "./components/OperationalStaffLogin";
 export { SyncBadge, TableCard, MenuItemGrid, OrderCart, KOTPreviewCard } from "./components/pos";
 export { KOTCard, AggregatedItemRow, StationSelector, KDSBoard, TableKOTCard, TableTicketTile, groupKotsByTable } from "./components/kds";
 export type { KdsQueueItem, TableKOTGroup, TableOrderSection, KdsBoardFilter } from "./components/kds";
 export { OutletHealthCard, MarginAlertCard, RecommendationCard, DeviceHealthRow } from "./components/owner";
+export { DisabledFeatureRoute } from "./components/DisabledFeatureRoute";
 
 export function Button({ children, onClick, variant = "primary", disabled, className = "", size = "md" }: {
   children: React.ReactNode;

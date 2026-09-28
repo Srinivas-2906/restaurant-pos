@@ -14,8 +14,8 @@ export function CaptainCart({
   onRemove: (itemId: string) => void;
   disabled?: boolean;
 }) {
-  const pending = order.items.filter((i) => !i.kotId && i.status === "pending");
-  const fired = order.items.filter((i) => i.kotId || i.status !== "pending");
+  const pending = (order.items ?? []).filter((i) => !i.kotId && i.status === "pending");
+  const fired = (order.items ?? []).filter((i) => i.kotId || i.status !== "pending");
 
   return (
     <div className="space-y-4">

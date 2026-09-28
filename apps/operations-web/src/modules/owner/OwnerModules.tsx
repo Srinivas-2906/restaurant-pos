@@ -313,32 +313,6 @@ export function OutletsModule() {
   );
 }
 
-export function DevicesModule() {
-  const [health, setHealth] = useState<{ devices: Array<{ name: string; deviceType: string; status: string; syncBacklog: number; lastSeenAt?: string }> } | null>(null);
-
-  useEffect(() => {
-    api<typeof health>("/devices/health").then(setHealth).catch(() => {});
-  }, []);
-
-  return (
-    <PageContent>
-      <PageHeader title="Devices" description="POS terminals, KDS screens, and sync status." />
-      <Panel title="Registered devices">
-        {!health?.devices?.length ? (
-          <EmptyState title="No devices registered" />
-        ) : (
-          <ul className="divide-y divide-gray-100 -mx-1">
-            {health.devices.map((d, i) => (
-              <li key={i} className="py-3 text-sm flex justify-between items-center">
-                <span>{d.name} <span className="text-gray-400">({d.deviceType})</span></span>
-                <span className={d.status === "online" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>{d.status}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </PageContent>
-  );
-}
+export { DevicesModule } from "./DevicesManagementModule";
 
 export { ReportsModule } from "@/modules/reports/ReportsModule";

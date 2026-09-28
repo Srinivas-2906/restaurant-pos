@@ -21,6 +21,7 @@ describe("TerminalAuthGuard", () => {
       isRegistered: true,
       deviceSecretHash,
       deviceType: "pos",
+      revokedAt: null,
       outlet: { brand: { organizationId: "org-1" } },
     });
 
@@ -46,10 +47,35 @@ describe("TerminalAuthGuard", () => {
       isRegistered: true,
       deviceSecretHash,
       deviceType: "pos",
+      revokedAt: null,
       outlet: { brand: { organizationId: "org-1" } },
     });
 
     const request = { headers: { authorization: "Terminal term-1:wrong-secret" } };
+    const context = {
+      switchToHttp: () => ({ getRequest: () => request }),
+    };
+
+    await expect(guard.canActivate(context as never)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it("rejects revoked terminal credentials", async () => {
+    const secret = "secret";
+    const deviceSecretHash = await bcrypt.hash(secret, 10);
+    prisma.terminal.findUnique.mockResolvedValue({
+      id: "term-1",
+      outletId: "outlet-1",
+      isActive: true,
+      isRegistered: true,
+      deviceSecretHash,
+      deviceType: "pos",
+      revokedAt: new Date(),
+      outlet: { brand: { organizationId: "org-1" } },
+    });
+
+    const request = { headers: { authorization: `Terminal term-1:${secret}` } };
     const context = {
       switchToHttp: () => ({ getRequest: () => request }),
     };

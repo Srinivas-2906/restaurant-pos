@@ -61,9 +61,33 @@ export async function resolveOutletId(): Promise<string> {
 }
 
 export async function fetchMenu(outletId: string) {
-  return api<Array<{ id: string; name: string; items: Array<{ id: string; name: string; basePrice: number; isAvailable?: boolean }> }>>(
-    `/outlets/${outletId}/menu`,
-  );
+  const raw = await api<
+    Array<
+      | { id: string; name: string; items: MenuItem[] }
+      | { id: string; name: string; categories: Array<{ id: string; name: string; items?: MenuItem[] }> }
+    >
+  >(`/outlets/${outletId}/menu`);
+
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+
+  if ("categories" in raw[0]) {
+    return raw.flatMap((menu) =>
+      (menu.categories ?? []).map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        items: (cat.items ?? []).map((item) => ({
+          ...item,
+          basePrice: Number((item as { price?: number; basePrice: number }).price ?? item.basePrice),
+        })),
+      })),
+    );
+  }
+
+  return raw.map((cat) => ({
+    id: cat.id,
+    name: cat.name,
+    items: cat.items ?? [],
+  }));
 }
 
 export async function getOpenOrderByTable(outletId: string, tableId: string) {

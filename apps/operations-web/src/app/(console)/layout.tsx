@@ -6,6 +6,7 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { OutletBootstrap } from "@/components/OutletBootstrap";
 import { AppProviders } from "@/components/AppProviders";
 import { ConsoleShell } from "@/components/shell/ConsoleShell";
+import { CapabilityRouteGuard } from "@/components/CapabilityRouteGuard";
 import { hub } from "@/lib/api";
 
 export default function ConsoleLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +30,9 @@ export default function ConsoleLayout({ children }: { children: React.ReactNode 
     <AppProviders>
       <AuthGuard>
         <OutletBootstrap />
-        <ConsoleShell hubOffline={hubOffline}>{children}</ConsoleShell>
+        <ConsoleShell hubOffline={hubOffline}>
+          <CapabilityRouteGuard>{children}</CapabilityRouteGuard>
+        </ConsoleShell>
       </AuthGuard>
     </AppProviders>
   );

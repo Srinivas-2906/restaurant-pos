@@ -75,7 +75,7 @@ export class OutletsService {
     });
   }
 
-  private async bootstrapDineInOutlet(outletId: string) {
+  async bootstrapDineInOutlet(outletId: string) {
     await this.prisma.kitchenStation.createMany({
       data: [
         { outletId, name: "Tandoor", code: "TANDOOR", sortOrder: 1 },
@@ -89,8 +89,26 @@ export class OutletsService {
         outletId,
         name: "Main Counter",
         code: "T1",
+        deviceType: "pos",
         isMaster: true,
       },
+    });
+
+    await this.prisma.terminal.createMany({
+      data: [
+        {
+          outletId,
+          name: "Captain Tablet",
+          code: "CAP1",
+          deviceType: "captain",
+        },
+        {
+          outletId,
+          name: "Kitchen Display",
+          code: "KDS1",
+          deviceType: "kds",
+        },
+      ],
     });
 
     const floorPlan = await this.prisma.floorPlan.create({
